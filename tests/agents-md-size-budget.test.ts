@@ -5,7 +5,7 @@
  *   부분은 잘린다(docs/rules, 확인 2026-10-11). Antigravity 가 이제 이 파일을 앵커로 읽는다.
  * - Codex: `project_doc_max_bytes` 기본 32 KiB — 합친 크기가 닿으면 거기서 읽기를 멈춘다(ADR-071).
  *
- * 가장 큰 렌더 = 세 CLI 전부 + 전 트랙 룰 + 빈 스캐폴드 + 상시 스킬 안내 전부. **설치자가 채운 Project Context 는 이 수에
+ * 재는 렌더 = 세 CLI 전부 + 그 트랙의 룰 + 빈 스캐폴드 + 상시 스킬 안내 전부. **설치자가 채운 Project Context 는 이 수에
  * 들지 않는다** — 넘는 만큼 뒤(`## Protected Files`)부터 잘린다. 이 테스트는 하네스 몫만으로 상한을 넘지 않는지만 문다.
  */
 
@@ -18,13 +18,18 @@ import { CONTINUOUS_SKILLS } from "../src/external-assets.js";
 import { resolveRules } from "../src/manifest.js";
 import { renderFillScaffold } from "../src/project-claude-merge.js";
 import { portRules, renderRulesBlock } from "../src/rules-port.js";
+import { TRACKS } from "../src/types.js";
 
 const ROOT = resolve(__dirname, "..");
 
 describe("AGENTS.md 크기 — 벤더 상한 (B-T8)", () => {
-  it("세 CLI · full 트랙 · 빈 스캐폴드 렌더가 Antigravity 24,000 B 와 Codex 32 KiB 안이다", () => {
-    const rules = resolveRules({ tracks: ["full"] });
-    expect(rules.length, "모집단 자기검증 — full 트랙 룰이 있어야 한다").toBeGreaterThan(3);
+  // #935 — `full` 이 가장 큰 렌더라는 전제는 #820 부터 참이 아니다: htmx 화면 룰은 `full` 에 없고 그 트랙에만 간다.
+  //   트랙마다 잰다. `full` 과 htmx 트랙을 함께 고른 조합은 이 상한을 넘는다 — 측정 = `docs/research/htmx-stacks-2026-11.md` §결정.
+  it.each([
+    ...TRACKS,
+  ])("세 CLI · %s 트랙 · 빈 스캐폴드 렌더가 Antigravity 24,000 B 와 Codex 32 KiB 안이다", (track) => {
+    const rules = resolveRules({ tracks: [track] });
+    expect(rules.length, "모집단 자기검증 — 트랙 룰이 있어야 한다").toBeGreaterThan(2);
     const out = renderAgentsMd({
       template: readFileSync(join(ROOT, AGENTS_MD_TEMPLATE), "utf8"),
       claudeMd: readFileSync(join(ROOT, "templates/CLAUDE.md"), "utf8"),

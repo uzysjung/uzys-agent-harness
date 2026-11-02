@@ -85,6 +85,7 @@ describe("NORTH_STAR 상주 비용 수치 ↔ 실측", () => {
       "csr-fastapi",
       "ssr-htmx",
       "ssr-htmx-fastify",
+      "ssr-htmx-hono",
       "ssr-nextjs",
     ];
     const leaked = ungated.filter((t) => new RegExp(`${t}\\s*[:\\s]*\\d`).test(northStar));

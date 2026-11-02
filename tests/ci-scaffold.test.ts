@@ -65,8 +65,11 @@ describe("installCiScaffold (라이프사이클 자산화 ② — ADR-037)", () 
     ]);
   });
 
-  it("ssr-htmx-fastify(Node 백엔드): ci.yml + e2e.yml, python 변형 없음 (#855 경계)", () => {
-    const report = run(["ssr-htmx-fastify"]);
+  it.each([
+    "ssr-htmx-fastify",
+    "ssr-htmx-hono",
+  ] as const)("%s(TypeScript 백엔드): ci.yml + e2e.yml, python 변형 없음 (#855 경계 · #935)", (track) => {
+    const report = run([track]);
     expect(report.written.sort()).toEqual([
       ".github/workflows/ci.yml",
       ".github/workflows/e2e.yml",

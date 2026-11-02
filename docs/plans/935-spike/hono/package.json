@@ -1,0 +1,19 @@
+{
+  "name": "spike-935-hono",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "hono": "^4"
+  },
+  "devDependencies": {
+    "@shadcn/lint": "latest",
+    "@typescript-eslint/parser": "^8",
+    "daisyui": "^5",
+    "eslint": "^9.30",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  }
+}

@@ -9,6 +9,8 @@ export const TRACKS = [
   "ssr-htmx",
   // #820 — htmx 의 Node 백엔드. `ssr-htmx`(FastAPI) 의 id 는 설치 기록이 갖고 있어 그대로 두고 옆에 더했다.
   "ssr-htmx-fastify",
+  // #935 — htmx 의 두 번째 TypeScript 백엔드(Hono + hono/jsx). 이스케이프 기본값·테스트 도구가 Fastify 와 달라 룰을 따로 둔다.
+  "ssr-htmx-hono",
   "ssr-nextjs",
   "data",
   "executive",
