@@ -144,9 +144,7 @@ const RULE_DESTINATION: Record<CliBase, (f: string, inst: Installed) => boolean>
 
 /** `AGENTS.md` 의 경로 룰 포인터가 가리키는 설치본 파일 — 없는 파일은 도달이 아니다. */
 function pointedFiles(inst: Installed): Set<string> {
-  const targets = pathRulePointerTargets(inst.text.get("AGENTS.md") ?? "").map(
-    (name) => `.agents/rules/${name}.md`,
-  );
+  const targets = pathRulePointerTargets(inst.text.get("AGENTS.md") ?? "");
   return new Set(targets.filter((f) => inst.files.includes(f)));
 }
 

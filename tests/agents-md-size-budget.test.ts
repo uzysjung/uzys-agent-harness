@@ -18,7 +18,12 @@ import { AGENTS_MD_TEMPLATE, type AgentsMdCli, renderAgentsMd } from "../src/age
 import { CONTINUOUS_SKILLS } from "../src/external-assets.js";
 import { resolveRules } from "../src/manifest.js";
 import { renderFillScaffold } from "../src/project-claude-merge.js";
-import { PATH_RULE_POINTER_LEAD, portRules, renderRulesBlock } from "../src/rules-port.js";
+import {
+  PATH_RULE_POINTER_LEAD,
+  type PathRuleFolder,
+  portRules,
+  renderRulesBlock,
+} from "../src/rules-port.js";
 import { TRACKS, type Track } from "../src/types.js";
 
 const ROOT = resolve(__dirname, "..");
@@ -30,7 +35,7 @@ function render(
   tracks: ReadonlyArray<Track>,
   clis: ReadonlyArray<AgentsMdCli>,
   rulesViaInstructions = false,
-  pathRulesViaFiles = false,
+  pathRulesViaFiles: PathRuleFolder | false = false,
 ): string {
   const rules = resolveRules({ tracks: [...tracks] });
   expect(rules.length, "모집단 자기검증 — 트랙 룰이 있어야 한다").toBeGreaterThan(2);
@@ -146,7 +151,7 @@ describe("AGENTS.md 크기 — 벤더 상한 (B-T8)", () => {
   it.each(
     PAIRS,
   )("codex+antigravity(경로 룰 포인터) · %s + %s — 파일 전체 < 24,000 · 32 KiB", (a, b) => {
-    const out = render([a, b], ["codex", "antigravity"], false, true);
+    const out = render([a, b], ["codex", "antigravity"], false, ".agents/rules");
     const bytes = Buffer.byteLength(out, "utf8");
     expect(bytes).toBeLessThan(ANTIGRAVITY_LIMIT);
     expect(bytes).toBeLessThan(32 * 1024);
@@ -156,5 +161,23 @@ describe("AGENTS.md 크기 — 벤더 상한 (B-T8)", () => {
     expect(out.includes(PATH_RULE_POINTER_LEAD), "경로 룰이 있으면 포인터 목록이 있다").toBe(
       hasPathRule,
     );
+  });
+
+  // #953 (ADR-118) — Claude Code + Codex(OpenCode · Antigravity 없음)는 경로 룰이 `.claude/rules/` 포인터다. Antigravity 가 없어
+  //   24,000 B 는 이 파일의 상한이 아니다 — Codex 32 KiB 안이고, 포인터가 그 폴더를 가리킨다. 인라인으로 되돌리면 경로 룰 본문이
+  //   돌아와 아래 "목록이 있다" 가 red.
+  it.each(
+    PAIRS,
+  )("claude+codex(경로 룰 포인터 → .claude/rules) · %s + %s — 32 KiB 안 · 포인터가 그 폴더", (a, b) => {
+    const out = render([a, b], ["codex"], false, ".claude/rules");
+    expect(Buffer.byteLength(out, "utf8")).toBeLessThan(32 * 1024);
+    const pathRules = portRules(ROOT, resolveRules({ tracks: [a, b] })).filter(
+      (r) => r.paths.length > 0,
+    );
+    expect(out.includes(PATH_RULE_POINTER_LEAD)).toBe(pathRules.length > 0);
+    for (const r of pathRules) {
+      expect(out).toContain(`→ \`.claude/rules/${r.name}.md\``);
+      expect(out).not.toContain(r.body.replace(/^#\s+/, "## "));
+    }
   });
 });

@@ -46,7 +46,7 @@ describe("D2 — 렌더: 상시 룰은 그대로, 경로 룰만 측정한 형식
   const cli = rule("cli-development", ["**/*.sh"]);
 
   it("목록 = 측정한 머리 문장 + 룰마다 `paths:` 를 ` · ` 로 이은 줄 → `.agents/rules/<룰>.md` · 줄 순서 = 경로 룰의 렌더 순서", () => {
-    const out = renderRulesBlock([ui, always, cli], true);
+    const out = renderRulesBlock([ui, always, cli], ".agents/rules");
     expect(out).toBe(
       [
         "## git-policy title\n\nGIT-POLICY-BODY",
@@ -58,7 +58,10 @@ describe("D2 — 렌더: 상시 룰은 그대로, 경로 룰만 측정한 형식
       ].join("\n\n---\n\n"),
     );
     expect(out).not.toContain("UI-COMPONENTS-BODY");
-    expect(pathRulePointerTargets(out)).toEqual(["ui-components", "cli-development"]);
+    expect(pathRulePointerTargets(out)).toEqual([
+      ".agents/rules/ui-components.md",
+      ".agents/rules/cli-development.md",
+    ]);
   });
 
   it("거짓이면 v26.181.0 과 같다 — 상시 룰 → 경로 룰 본문", () => {
@@ -68,13 +71,13 @@ describe("D2 — 렌더: 상시 룰은 그대로, 경로 룰만 측정한 형식
   });
 
   it("경로 룰이 없는 집합은 참이어도 같은 바이트 — 실제 트랙(base)도", () => {
-    expect(renderRulesBlock([always], true)).toBe(renderRulesBlock([always], false));
+    expect(renderRulesBlock([always], ".agents/rules")).toBe(renderRulesBlock([always], false));
     const base = portRules(ROOT, resolveRules({ tracks: ["base"] }));
     expect(
       base.every((r) => r.paths.length === 0),
       "모집단 자기검증 — base 는 경로 룰이 없다",
     ).toBe(true);
-    expect(renderRulesBlock(base, true)).toBe(renderRulesBlock(base, false));
+    expect(renderRulesBlock(base, ".agents/rules")).toBe(renderRulesBlock(base, false));
   });
 });
 
@@ -142,7 +145,7 @@ describe("D1 · §3 — 실행마다 Codex 가 경로 룰을 받는 수", () => 
     const agents = read("AGENTS.md");
     const inline = agents.includes(h2(r));
     const file =
-      pathRulePointerTargets(agents).includes(r.name) &&
+      pathRulePointerTargets(agents).includes(`.agents/rules/${r.name}.md`) &&
       read(`.agents/rules/${r.name}.md`).includes(r.body);
     return Number(inline) + Number(file);
   };

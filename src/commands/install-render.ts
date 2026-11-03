@@ -11,7 +11,7 @@ import { hasTrustEntry, tomlBasicString } from "../codex/trust-entry.js";
  */
 
 import { existsSync, readdirSync, readFileSync } from "node:fs";
-import { basename, join, relative } from "node:path";
+import { basename, dirname, join, relative, sep } from "node:path";
 import type { AnchorRetireResult } from "../antigravity/retire-anchor.js";
 import { CATEGORY_TITLES, type Category } from "../categories.js";
 import { CLI_DISPLAY_NAMES, targetsInclude } from "../cli-targets.js";
@@ -512,21 +512,33 @@ function rulesInsideAgentsMd(spec: InstallSpec, cost: ResidentCost): ResidentCos
     ...cost,
     rules: outside.reduce((sum, f) => sum + fileTokens(f), 0),
     rulesInline: rendered ? "rendered" : "planned",
-    ...(outside.length > 0 ? { rulesOutside: outside.length } : {}),
+    ...(outside.length > 0
+      ? {
+          rulesOutside: {
+            count: outside.length,
+            dir: [
+              ...new Set(
+                outside.map((f) => relative(spec.projectDir, dirname(f)).split(sep).join("/")),
+              ),
+            ].join(" · "),
+          },
+        }
+      : {}),
     contextNote: "whole file, incl. your text",
   });
 }
 
 /**
- * #948 (ADR-117) — 디스크의 `AGENTS.md` 가 경로 룰 포인터로 가리키는 `.agents/rules/<룰>.md` 중 실재하는 파일(절대 경로). 룰이 인라인일
- * 때만 뜻이 있다(`rulesInline`). 디스크 바이트로 본다 — 이번 실행이 그 파일을 안 썼어도 지금 상주하는 것은 그 바이트다.
+ * #948 (ADR-117) · #953 — 디스크의 `AGENTS.md` 가 경로 룰 포인터로 가리키는 룰 파일(`.agents/rules/<룰>.md` · `.claude/rules/<룰>.md` —
+ * 포인터 줄이 적은 폴더 그대로) 중 실재하는 것(절대 경로). 룰이 인라인일 때만 뜻이 있다(`rulesInline`). 디스크 바이트로 본다 — 이번
+ * 실행이 그 파일을 안 썼어도 지금 상주하는 것은 그 바이트다.
  */
 function pointedRuleFiles(spec: InstallSpec): string[] {
   if (!rulesInline(spec)) return [];
   const agents = join(spec.projectDir, "AGENTS.md");
   if (!existsSync(agents)) return [];
   return pathRulePointerTargets(readFileSync(agents, "utf8"))
-    .map((name) => join(spec.projectDir, ".agents", "rules", `${name}.md`))
+    .map((rel) => join(spec.projectDir, rel))
     .filter((f) => existsSync(f));
 }
 
