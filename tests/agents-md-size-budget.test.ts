@@ -180,4 +180,31 @@ describe("AGENTS.md 크기 — 벤더 상한 (B-T8)", () => {
       expect(out).not.toContain(r.body.replace(/^#\s+/, "## "));
     }
   });
+
+  // #960 (ADR-119) — OpenCode 가 섞인 집합도 경로 룰이 포인터다(인라인 룰을 읽는 CLI 가 Codex 든 OpenCode 든). Antigravity 가 있으면
+  //   파일 전체가 24,000 B 안이어야 한다 — 인라인 렌더는 codex+opencode+antigravity 13 조합이 넘는다(2026-11-03 실측 최대 24,955 →
+  //   포인터 21,588 B). Antigravity 가 없는 집합(Claude Code 와 함께 → `.claude/rules/`)은 Codex 32 KiB 안 · 포인터가 그 폴더.
+  const WITH_OPENCODE: ReadonlyArray<readonly [ReadonlyArray<AgentsMdCli>, PathRuleFolder]> = [
+    [["codex", "opencode", "antigravity"], ".agents/rules"],
+    [["codex", "opencode"], ".claude/rules"],
+    [["opencode"], ".claude/rules"],
+  ];
+  for (const [clis, folder] of WITH_OPENCODE) {
+    it.each(
+      PAIRS,
+    )(`${clis.join("+")}(경로 룰 포인터 → ${folder}) · %s + %s — 상한 안 · 포인터가 그 폴더`, (a, b) => {
+      const out = render([a, b], clis, false, folder);
+      const bytes = Buffer.byteLength(out, "utf8");
+      expect(bytes).toBeLessThan(32 * 1024);
+      if (clis.includes("antigravity")) expect(bytes).toBeLessThan(ANTIGRAVITY_LIMIT);
+      const pathRules = portRules(ROOT, resolveRules({ tracks: [a, b] })).filter(
+        (r) => r.paths.length > 0,
+      );
+      expect(out.includes(PATH_RULE_POINTER_LEAD)).toBe(pathRules.length > 0);
+      for (const r of pathRules) {
+        expect(out).toContain(`→ \`${folder}/${r.name}.md\``);
+        expect(out).not.toContain(r.body.replace(/^#\s+/, "## "));
+      }
+    });
+  }
 });

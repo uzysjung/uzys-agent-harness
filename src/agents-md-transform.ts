@@ -52,8 +52,9 @@ export interface AgentsMdTransformParams {
    */
   rulesViaInstructions: boolean;
   /**
-   * #948 (ADR-117) · #953 (ADR-118) — 이번 실행이 Codex 의 경로 룰(`paths:`) 도달을 이 폴더의 `<룰>.md` 로 보장했다(`runCliTransforms`
-   * 가 정한다: Codex ∈ 집합 ∧ OpenCode ∉ 집합 ∧ 이번 실행이 이번 룰 전부를 그 폴더에 썼다 — `.agents/rules` 우선, 아니면 `.claude/rules`).
+   * #948 (ADR-117) · #953 (ADR-118) · #960 (ADR-119) — 이번 실행이 Codex · OpenCode 의 경로 룰(`paths:`) 도달을 이 폴더의 `<룰>.md` 로
+   * 보장했다(`runCliTransforms` 가 정한다: Codex 또는 OpenCode ∈ 집합 ∧ 이번 실행이 이번 룰 전부를 그 폴더에 썼다 — `.agents/rules` 우선,
+   * 아니면 `.claude/rules`). 위 `rulesViaInstructions` 가 참이면 렌더가 그쪽을 쓴다.
    * 폴더가 오고 이 파일이 절 모델이면 경로 룰 본문 대신 그 파일을 가리키는 목록을 쓴다. **required** — 룰 폴더를 쓰지 않는 경로
    * (`uninstall --cli` · `--track` 재렌더)는 `false` 를 명시한다.
    */

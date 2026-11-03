@@ -13,8 +13,9 @@
  *     24,000 B 에서 자르고 Codex 가 32 KiB 에서 멈출 때 빠지는 것이 설치자 절이 아니라 룰 사본의 뒷부분이게 한다
  *   - #944 — Codex 가 없고 이번 실행이 OpenCode 의 `instructions` 로 `.agents/rules/` 를 읽게 해 뒀으면
  *     (`rulesViaInstructions`) 룰 본문 대신 위치 안내 한 문단 — 두 CLI 가 룰을 한 번씩만 읽는다
- *   - #948 (ADR-117) · #953 (ADR-118) — Codex 가 있고 OpenCode 가 없는 집합에서 이번 실행이 이번 룰 전부를 한 룰 폴더에 썼으면
- *     (`.agents/rules/` 우선, 아니면 Claude Code 의 `.claude/rules/`) 경로 룰(`paths:`)은 본문 대신 그 파일을 가리키는 목록이다
+ *   - #948 (ADR-117) · #953 (ADR-118) · #960 (ADR-119) — Codex 나 OpenCode 가 있는 집합에서(위 위치 안내가 서면 그쪽) 이번
+ *     실행이 이번 룰 전부를 한 룰 폴더에 썼으면(`.agents/rules/` 우선, 아니면 Claude Code 의 `.claude/rules/`) 경로 룰(`paths:`)은
+ *     본문 대신 그 파일을 가리키는 목록이다
  *     (`renderRulesBlock` — 호출부가 `harnessRules` 로 넘긴다)
  *   - 그 절의 하네스 몫(안내 · 룰 본문 · 위치 안내)은 `rules` 마커 블록 안이다(#944 F1) — 맨 끝 절이라 설치자가 파일 끝에 붙인
  *     `## ` 절이 이 절 안에 놓인다. 블록 끝 뒤의 절은 제목과 무관하게 설치자 것이다(`headingOwner`)

@@ -14,6 +14,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { specFromOptions } from "../src/commands/install.js";
 import { runInstall } from "../src/installer.js";
 import { initialTargetSelection } from "../src/interactive.js";
+import { pathRulePointerTargets } from "../src/rules-port.js";
 import { CLI_BASES, DEFAULT_OPTIONS, type Track } from "../src/types.js";
 
 const HARNESS_ROOT = resolve(__dirname, "..");
@@ -61,7 +62,7 @@ function installedServers(dir: string): { mcp: string[]; opencode: string[]; cod
   };
 }
 
-/** 룰 본문의 제목 줄 — 문구를 여기 박지 않고 배포 룰에서 읽는다(AGENTS.md 인라인 도달 판정용). */
+/** 룰 본문의 제목 줄 — 문구를 여기 박지 않고 배포 룰에서 읽는다(AGENTS.md 인라인 부재 판정용). */
 function ruleHeading(): string {
   const body = readFileSync(join(HARNESS_ROOT, `templates/rules/${RULE}.md`), "utf8");
   const heading = body.split("\n").find((l) => l.startsWith("# "));
@@ -90,8 +91,10 @@ describe("#935 — ssr-htmx-hono 트랙", () => {
     const dir = installAll(["ssr-htmx-hono"]);
     expect(existsSync(join(dir, `.claude/rules/${RULE}.md`)), "Claude Code").toBe(true);
     expect(existsSync(join(dir, `.agents/rules/${RULE}.md`)), "Antigravity").toBe(true);
-    // Codex · OpenCode 는 룰을 루트 AGENTS.md 본문으로 읽는다.
-    expect(readFileSync(join(dir, "AGENTS.md"), "utf8")).toContain(ruleHeading());
+    // Codex · OpenCode 는 루트 AGENTS.md 의 경로 룰 포인터로 Antigravity 가 쓴 그 파일을 읽는다(#960 · ADR-119 — 전에는 본문 인라인).
+    expect(pathRulePointerTargets(readFileSync(join(dir, "AGENTS.md"), "utf8"))).toContain(
+      `.agents/rules/${RULE}.md`,
+    );
 
     const servers = installedServers(dir);
     expect(servers).toEqual(installedServers(installAll(["ssr-htmx-fastify"])));
@@ -106,6 +109,11 @@ describe("#935 — ssr-htmx-hono 트랙", () => {
     expect(existsSync(join(dir, ".claude/rules/cli-development.md"))).toBe(true);
     expect(existsSync(join(dir, `.claude/rules/${RULE}.md`))).toBe(false);
     expect(existsSync(join(dir, `.agents/rules/${RULE}.md`))).toBe(false);
-    expect(readFileSync(join(dir, "AGENTS.md"), "utf8")).not.toContain(ruleHeading());
+    const agents = readFileSync(join(dir, "AGENTS.md"), "utf8");
+    expect(agents).not.toContain(ruleHeading());
+    expect(pathRulePointerTargets(agents), "대조군 — full 의 경로 룰은 가리킨다").toContain(
+      ".agents/rules/cli-development.md",
+    );
+    expect(pathRulePointerTargets(agents)).not.toContain(`.agents/rules/${RULE}.md`);
   });
 });

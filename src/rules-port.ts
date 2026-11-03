@@ -8,12 +8,13 @@
  *
  * 여기 있는 것은 **한 벌의 변환 규칙**이다. CLI 별 목적지는 각 transform 이 정한다:
  *   - Antigravity → `.agents/rules/<name>.md` (워크스페이스 룰, 네이티브)
- *   - OpenCode    → `AGENTS.md` 본문 embed (Codex 와 같은 파일 · 같은 블록). 예외 하나(#944 · ADR-116): Codex 가 없고
+ *   - OpenCode    → `AGENTS.md` 본문 embed (Codex 와 같은 파일 · 같은 블록). 예외 둘: ① (#944 · ADR-116) Codex 가 없고
  *                   Antigravity 가 `.agents/rules/` 에 이번 룰을 전부 썼으면 `opencode.json` `instructions` 의
- *                   `.agents/rules/*.md` 원소로 그 파일을 읽는다(OpenCode 공식: "combined with your AGENTS.md")
+ *                   `.agents/rules/*.md` 원소로 그 파일을 읽는다(OpenCode 공식: "combined with your AGENTS.md") ② 그 밖에는
+ *                   Codex 와 같은 경로 룰 포인터(#960 · ADR-119 — ① 이 서면 ① 이 우선)
  *   - Codex       → `AGENTS.md` 본문 embed (Codex 는 룰 디렉터리가 없다 — AGENTS.md 계층뿐). 예외 하나(#948 · ADR-117 · #953 ·
- *                   ADR-118): OpenCode 가 없고 이번 실행이 이번 룰 전부를 한 룰 폴더(`.agents/rules/` 우선, 아니면 Claude Code 의
- *                   `.claude/rules/`)에 썼으면 경로 룰(`paths:`)만 그 폴더의 파일을 가리키는 목록이다
+ *                   ADR-118 · #960 · ADR-119): 이번 실행이 이번 룰 전부를 한 룰 폴더(`.agents/rules/` 우선, 아니면 Claude Code 의
+ *                   `.claude/rules/`)에 썼으면 경로 룰(`paths:`)만 그 폴더의 파일을 가리키는 목록이다(OpenCode 가 섞여도 같다)
  */
 
 import { existsSync, readdirSync, readFileSync } from "node:fs";
@@ -144,7 +145,7 @@ export function pathRulePointerTargets(text: string): string[] {
  * #944 — 상시 룰을 먼저, 경로 룰(`paths:`)을 뒤에 잇는다(각 묶음 안은 받은 순서). 이 덩어리는 파일 맨 끝이라 Codex 가
  * 32 KiB 에서 멈추면 뒷부분이 빠진다 — 빠져도 Claude Code 가 지연 로드하는 것과 같은 경로 룰이 빠지게 한다.
  *
- * @param pathRulesViaFiles #948 · #953 — 폴더를 주면 경로 룰 본문 대신 그 폴더의 파일(`<폴더>/<룰>.md`)을 가리키는 목록 하나를 같은
+ * @param pathRulesViaFiles #948 · #953 · #960 — 폴더를 주면 경로 룰 본문 대신 그 폴더의 파일(`<폴더>/<룰>.md`)을 가리키는 목록 하나를 같은
  *   자리(맨 끝)에 둔다. 호출부가 이번 실행이 그 폴더에 이번 룰 전부를 썼음을 보장할 때만 준다. 경로 룰이 없으면 `false` 일 때와 같은 바이트다.
  */
 export function renderRulesBlock(

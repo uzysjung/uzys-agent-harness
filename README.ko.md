@@ -148,8 +148,8 @@ your-project/
 | 도구 | 룰 | 스킬 | 훅 | 서브에이전트 | 플러그인 |
 |---|---|---|---|---|---|
 | Claude Code | ✓ | ✓ | ✓ | ✓ | ✓ |
-| Codex | ✓ (`AGENTS.md` 안에 포함. OpenCode 없이 Antigravity나 Claude Code와 함께 깔면, 하네스가 만든 `AGENTS.md`일 때 특정 파일에만 쓰는 룰은 `AGENTS.md`가 `.agents/rules/`(Antigravity) 또는 `.claude/rules/`(Claude Code)의 파일을 가리킨다) | ✓ | 세션 시작만 | — | — |
-| OpenCode | ✓ (`AGENTS.md` 안에 포함. Codex 없이 Antigravity와 함께 깔면, 하네스가 만든 `AGENTS.md`일 때 `opencode.json`을 거쳐 `.agents/rules/`를 읽는다) | ✓ | — | — | — |
+| Codex | ✓ (`AGENTS.md` 안에 포함. Antigravity나 Claude Code와 함께 깔면, 하네스가 만든 `AGENTS.md`일 때 특정 파일에만 쓰는 룰은 `AGENTS.md`가 `.agents/rules/`(Antigravity) 또는 `.claude/rules/`(Claude Code)의 파일을 가리킨다) | ✓ | 세션 시작만 | — | — |
+| OpenCode | ✓ (`AGENTS.md` 안에 포함. 하네스가 만든 `AGENTS.md`일 때, Codex 없이 Antigravity와 함께 깔면 `opencode.json`을 거쳐 `.agents/rules/`를 읽고, 그 밖에는 특정 파일에만 쓰는 룰을 Codex와 같은 방식으로 가리킨다) | ✓ | — | — | — |
 | Antigravity | ✓ | ✓ | — | — | — |
 
 플러그인은 Claude Code에만 있는 기능이라 Claude Code에만 설치된다. 룰과 스킬은 같은 원본에서 만들기 때문에 어느 도구에서나 내용이 같다. 다만 도구가 스스로 막아 줄 수 있는 범위는 도구마다 다르다.
