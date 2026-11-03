@@ -1,0 +1,26 @@
+# 사용자 환경(전역 설정 포함)
+run	arm	read_rule	read_dir	read_skill	canary_1st	canary_any	read_at	ncmd	in_tok	first_line
+A-0	A	False	False	False	True	True	None	12	576287	// ui-rule: v7
+A-1	A	False	False	False	True	True	None	16	517523	// ui-rule: v7
+B1-0	B1	True	True	False	True	True	0	7	201344	// ui-rule: v7
+B1-1	B1	True	True	False	True	True	1	9	241135	// ui-rule: v7
+B1-2	B1	True	True	False	True	True	0	14	437929	// ui-rule: v7
+B1-3	B1	True	True	False	True	True	1	14	507043	// ui-rule: v7
+B2-0	B2	False	False	False	False	False	None	0	None	(파일 없음)
+B2-1	B2	True	True	False	False	False	1	5	None	(파일 없음)
+B2-2	B2	True	True	False	True	True	0	11	333407	// ui-rule: v7
+C-0	C	False	False	True	True	True	0	8	187219	// ui-rule: v7
+C-1	C	False	False	True	True	True	0	15	360306	// ui-rule: v7
+C-2	C	False	False	True	True	True	0	10	178536	// ui-rule: v7
+D-0	D	False	False	False	False	False	None	8	175975	import { Badge } from "@/components/ui/b
+D-1	D	False	False	False	False	False	None	13	304373	import { Badge } from "@/components/ui/b
+
+# 전역 설정 없는 CODEX_HOME
+run	arm	read_rule	read_dir	read_skill	canary_1st	canary_any	read_at	ncmd	in_tok	first_line
+A-0	A	False	False	False	True	True	None	10	222092	// ui-rule: v7
+B1-0	B1	True	True	False	True	True	0	12	266721	// ui-rule: v7
+B1-1	B1	True	True	False	True	True	0	10	222509	// ui-rule: v7
+B1-2	B1	True	True	False	True	True	0	11	219108	// ui-rule: v7
+C-0	C	False	False	True	True	True	0	15	332622	// ui-rule: v7
+C-1	C	False	False	True	True	True	0	10	133184	// ui-rule: v7
+D-0	D	False	False	False	False	False	None	8	121098	import type * as React from "react";
