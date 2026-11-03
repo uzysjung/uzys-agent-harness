@@ -7,6 +7,17 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 > v26.x.x 부터 git tag versioning(CalVer, year-2000)으로 통합. CHANGELOG 도 CalVer 로 표기. v0.8.x 는 이전 npm-기반 추적.
 
+## [v26.181.0] — 2026-11-03 (AGENTS.md 를 설치한 CLI 조합에 맞게 · Working Principles 자율 진행 구체화)
+
+### Changed
+- **Working Principles 가 "언제 멈추지 않는가"를 구체적인 행동으로 말한다** (ADR-115, PR #945) — 루틴한 계획을 확인받으려고, 프로젝트에서 답할 수 있는 것을 물으려고, 여러 부분으로 된 작업의 한 부분을 끝내고 멈추지 않는다. 묻는 때는 사용자 없이는 나아갈 수 없을 때 · 위험한 단계 전 · 합의한 의도와 권한 안에서 정할 수 없는 중대한 선택이 남았을 때로 좁혔다. 네 CLI 앵커 모두 update 로 들어온다.
+- **`AGENTS.md` 가 깔린 CLI 조합에 맞게 룰을 둔다** (#944, PR #946) — Antigravity 는 `AGENTS.md` 를 24,000 B 에서 자르는데, 지금까지는 Codex · OpenCode 용 룰 사본 때문에 넘치고 끝에 있던 설치자 글이 잘렸다.
+  - Codex 없이 Antigravity 와 OpenCode 를 함께 깔면 `AGENTS.md` 에 룰 본문 대신 룰이 어디 있는지만 적는다. OpenCode 는 `opencode.json` 의 `instructions` 에 하네스가 더한 `.agents/rules/*.md` 한 줄로 룰을 읽는다. 두 CLI 모두 룰을 한 번만 읽는다.
+  - Codex 가 섞이면 룰 본문은 그대로 두되 파일 맨 끝으로 옮겼다. Antigravity 가 잘라도 잘리는 것은 `.agents/rules/` 에도 있는 룰 사본뿐이다. 늘 적용되는 룰이 앞, 특정 파일용 룰이 뒤라 Codex 가 32 KiB 에서 멈춰도 빠지는 것은 특정 파일용 룰부터다.
+  - 설치자가 `AGENTS.md` 끝에 덧붙인 `## ` 절은 update 때 룰 절 앞으로 옮겨진다. 내용은 그대로다. Project Context 를 채운 설치자는 이 판의 첫 update 에서 `AGENTS.md` 백업 하나를 받는다.
+  - `opencode.json` 에서 하네스가 다루는 몫이 MCP 서버에 더해 그 `instructions` 한 줄로 늘었다. 설치자의 다른 `instructions` 는 건드리지 않고, 설치자가 이미 같은 줄을 갖고 있으면 하네스 것으로 적지 않는다. 빼려면 `--without 'opencode:instructions[=.agents/rules/*.md]'`.
+  - v26.180.0 의 알려진 한계(htmx 두 트랙 조합에서 Antigravity 상한 초과)가 풀렸다.
+
 ## [v26.180.0] — 2026-11-03 (htmx + Hono 트랙 · htmx 주 버전 확인)
 
 ### Added
