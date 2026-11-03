@@ -18,7 +18,7 @@ import { AGENTS_MD_TEMPLATE, type AgentsMdCli, renderAgentsMd } from "../src/age
 import { CONTINUOUS_SKILLS } from "../src/external-assets.js";
 import { resolveRules } from "../src/manifest.js";
 import { renderFillScaffold } from "../src/project-claude-merge.js";
-import { portRules, renderRulesBlock } from "../src/rules-port.js";
+import { PATH_RULE_POINTER_LEAD, portRules, renderRulesBlock } from "../src/rules-port.js";
 import { TRACKS, type Track } from "../src/types.js";
 
 const ROOT = resolve(__dirname, "..");
@@ -30,6 +30,7 @@ function render(
   tracks: ReadonlyArray<Track>,
   clis: ReadonlyArray<AgentsMdCli>,
   rulesViaInstructions = false,
+  pathRulesViaFiles = false,
 ): string {
   const rules = resolveRules({ tracks: [...tracks] });
   expect(rules.length, "모집단 자기검증 — 트랙 룰이 있어야 한다").toBeGreaterThan(2);
@@ -41,7 +42,7 @@ function render(
       renderFillScaffold("agents-md"),
       CONTINUOUS_SKILLS.map((s) => s.id),
     ),
-    harnessRules: renderRulesBlock(portRules(ROOT, rules)),
+    harnessRules: renderRulesBlock(portRules(ROOT, rules), pathRulesViaFiles),
     clis,
     rulesViaInstructions,
   });
@@ -137,5 +138,23 @@ describe("AGENTS.md 크기 — 벤더 상한 (B-T8)", () => {
       expect(Buffer.byteLength(out, "utf8")).toBeLessThan(ANTIGRAVITY_LIMIT);
     }
     expect(lostOutsideRules(render([a, b], ["opencode", "antigravity"]))).toBe(0);
+  });
+
+  // #948 (ADR-117) — Codex + Antigravity(OpenCode 없음)에서 Antigravity 가 이번에 룰을 다 쓴 실행은 경로 룰이 포인터 목록이다(Claude Code
+  //   를 함께 깔아도 이 파일의 렌더는 같다 — Claude 는 `AGENTS.md` 집합 밖). 그 렌더는 두 트랙 조합 전부에서 파일 전체가 24,000 B
+  //   안이다 — 인라인 렌더는 12 조합이 넘는다(2026-11-03 실측 최대 24,895 → 21,528 B). 포인터를 안 쓰면(인라인으로 되돌리면) 여기서 red.
+  it.each(
+    PAIRS,
+  )("codex+antigravity(경로 룰 포인터) · %s + %s — 파일 전체 < 24,000 · 32 KiB", (a, b) => {
+    const out = render([a, b], ["codex", "antigravity"], false, true);
+    const bytes = Buffer.byteLength(out, "utf8");
+    expect(bytes).toBeLessThan(ANTIGRAVITY_LIMIT);
+    expect(bytes).toBeLessThan(32 * 1024);
+    const hasPathRule = portRules(ROOT, resolveRules({ tracks: [a, b] })).some(
+      (r) => r.paths.length > 0,
+    );
+    expect(out.includes(PATH_RULE_POINTER_LEAD), "경로 룰이 있으면 포인터 목록이 있다").toBe(
+      hasPathRule,
+    );
   });
 });

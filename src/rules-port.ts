@@ -11,7 +11,8 @@
  *   - OpenCode    → `AGENTS.md` 본문 embed (Codex 와 같은 파일 · 같은 블록). 예외 하나(#944 · ADR-116): Codex 가 없고
  *                   Antigravity 가 `.agents/rules/` 에 이번 룰을 전부 썼으면 `opencode.json` `instructions` 의
  *                   `.agents/rules/*.md` 원소로 그 파일을 읽는다(OpenCode 공식: "combined with your AGENTS.md")
- *   - Codex       → `AGENTS.md` 본문 embed (Codex 는 룰 디렉터리가 없다 — AGENTS.md 계층뿐)
+ *   - Codex       → `AGENTS.md` 본문 embed (Codex 는 룰 디렉터리가 없다 — AGENTS.md 계층뿐). 예외 하나(#948 · ADR-117): OpenCode 가
+ *                   없고 Antigravity 가 `.agents/rules/` 에 이번 룰을 전부 썼으면 경로 룰(`paths:`)만 그 파일을 가리키는 목록이다
  */
 
 import { existsSync, readdirSync, readFileSync } from "node:fs";
@@ -104,6 +105,28 @@ export function ruleHeadings(harnessRoot: string): ReadonlySet<string> {
 }
 
 /**
+ * #948 (ADR-117) — 경로 룰 포인터 목록의 머리 문장. 문장 · 형식은 실 Codex 2차 측정에서 쓴 그대로다
+ * (`docs/research/codex-rule-pointer-2026-11.md` — 15/15 가 대상 파일을 쓰기 전에 그 룰을 읽었다). 고치면 측정하지 않은 판이 나간다.
+ */
+export const PATH_RULE_POINTER_LEAD =
+  "> 아래 파일을 만들거나 고치기 전에 그 룰을 읽고 따른다 — 본문은 여기 없다.";
+
+/** 경로 룰 한 줄 — 그 룰의 `paths:` 를 ` · ` 로 잇고 Antigravity 가 쓴 파일을 가리킨다(측정한 형식). */
+function pathRulePointerLine(rule: PortedRule): string {
+  return `> - ${rule.paths.map((p) => `\`${p}\``).join(" · ")} → \`.agents/rules/${rule.name}.md\``;
+}
+
+const POINTER_TARGET = /^> - .+ → `\.agents\/rules\/([^`/]+)\.md`$/;
+
+/**
+ * #948 — 이 `AGENTS.md` 본문이 경로 룰 포인터로 가리키는 룰 이름(파일명). update 화면의 상주 비용 줄이 그 룰을 인라인이 아니라
+ * `.agents/rules/` 파일로 세는 근거다 — 디스크 바이트로 본다(이번 실행이 그 파일을 안 썼어도 지금 상주하는 것은 그 바이트다).
+ */
+export function pathRulePointerTargets(text: string): string[] {
+  return text.split("\n").flatMap((l) => POINTER_TARGET.exec(l.replace(/\r$/, ""))?.[1] ?? []);
+}
+
+/**
  * Codex 용 — 룰 전체를 AGENTS.md 에 끼울 한 덩어리로 잇는다.
  *
  * Codex 는 룰 디렉터리가 없고 `AGENTS.md` 계층만 읽는다. 파일 경계가 사라지므로 각 룰의 h1 을
@@ -112,12 +135,23 @@ export function ruleHeadings(harnessRoot: string): ReadonlySet<string> {
  *
  * #944 — 상시 룰을 먼저, 경로 룰(`paths:`)을 뒤에 잇는다(각 묶음 안은 받은 순서). 이 덩어리는 파일 맨 끝이라 Codex 가
  * 32 KiB 에서 멈추면 뒷부분이 빠진다 — 빠져도 Claude Code 가 지연 로드하는 것과 같은 경로 룰이 빠지게 한다.
+ *
+ * @param pathRulesViaFiles #948 — 참이면 경로 룰 본문 대신 그 파일(`.agents/rules/<룰>.md`)을 가리키는 목록 하나를 같은 자리(맨 끝)에
+ *   둔다. 호출부가 그 파일이 이번 실행에 실재함을 보장할 때만 참이다. 경로 룰이 없으면 거짓일 때와 같은 바이트다.
  */
-export function renderRulesBlock(rules: ReadonlyArray<PortedRule>): string {
+export function renderRulesBlock(
+  rules: ReadonlyArray<PortedRule>,
+  pathRulesViaFiles = false,
+): string {
   if (rules.length === 0) return "";
-  const ordered = [
-    ...rules.filter((r) => r.paths.length === 0),
-    ...rules.filter((r) => r.paths.length > 0),
-  ];
-  return ordered.map((r) => r.body.replace(/^#\s+/, "## ")).join("\n\n---\n\n");
+  const always = rules.filter((r) => r.paths.length === 0);
+  const path = rules.filter((r) => r.paths.length > 0);
+  const bodies = (pathRulesViaFiles ? always : [...always, ...path]).map((r) =>
+    r.body.replace(/^#\s+/, "## "),
+  );
+  const pointers =
+    pathRulesViaFiles && path.length > 0
+      ? [[PATH_RULE_POINTER_LEAD, ...path.map(pathRulePointerLine)].join("\n")]
+      : [];
+  return [...bodies, ...pointers].join("\n\n---\n\n");
 }

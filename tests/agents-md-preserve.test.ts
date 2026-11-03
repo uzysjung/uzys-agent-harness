@@ -72,6 +72,7 @@ function render(
     selectedInternalSkills: opts.skills ?? ["user-centered-explanation"],
     refreshOnly: opts.refreshOnly ?? false,
     rulesViaInstructions: false,
+    pathRulesViaFiles: false,
   });
 }
 

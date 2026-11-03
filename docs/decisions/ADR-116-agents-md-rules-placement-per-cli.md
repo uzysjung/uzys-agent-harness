@@ -7,6 +7,8 @@
 - Amends: ADR-103 — 결정 1 의 인라인 조건 · 결정 2 의 "다음 update 와 같은 바이트" · Consequences 2항(OpenCode+Antigravity 의 이중
   읽기) · Consequences 3항(넘으면 `## Protected Files` 부터 잘린다)
 - 설계 = `docs/plans/944-design.md`(설계 검증 반영본)
+- Amended by: ADR-117 (#948) — Codex + Antigravity(OpenCode 없음)에서 Antigravity 가 이번에 룰을 다 썼으면 경로 룰은 `.agents/rules/<룰>.md`
+  를 가리키는 목록(결정 1 의 "인라인 룰 = 본문 전부" · Consequences 의 Codex 조합 Antigravity 이중 읽기)
 
 ## Context
 
