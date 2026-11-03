@@ -7,6 +7,8 @@
 - Amends: ADR-071(Antigravity 행 — 룰 자리는 `.agents/rules/` 그대로, 앵커는 `AGENTS.md`; 파일당 상한 "12,000자" → 24,000 bytes) ·
   ADR-096 D7(씨 뿌리기 출처에 옛 Antigravity 앵커 추가) · ADR-095(절 모델의 템플릿이 하나) · ADR-048/049(Antigravity 산출물 목록)
 - 설계 = `docs/plans/v26.165.0-design.md` §2 · §3 · §9(독립 검증 반영) · 검증 = `docs/plans/v26.165.0-design-verify.md`
+- Amended by: ADR-116 (#944) — `## Harness Rules` 는 맨 끝 · Codex 가 없으면 OpenCode 는 `instructions` 로 `.agents/rules/` 를 읽는다
+  (결정 1 의 인라인 조건 · 결정 2 의 바이트 동일 · Consequences 2·3항)
 
 ## Context
 

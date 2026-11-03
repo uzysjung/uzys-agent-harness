@@ -20,6 +20,7 @@ import {
 } from "../installer.js";
 import { renderedKeyIds, withoutAccepts } from "../key-ids.js";
 import { excludedIds } from "../recorded.js";
+import { shellArg } from "../shell-arg.js";
 import {
   type CliTargets,
   type InstallScope,
@@ -482,7 +483,7 @@ function unknownKeyWarning(id: string, flag: string, keys: ReadonlySet<string>):
   const same = [...keys].filter((k) => k.startsWith(prefix)).sort();
   const shown = same.length > 0 ? same : [...keys].sort();
   return shown.length > 0
-    ? `[WARN] Unknown key id '${id}' (${flag}). Skipping. Key ids this install writes: ${shown.join(", ")}`
+    ? `[WARN] Unknown key id '${id}' (${flag}). Skipping. Key ids this install writes: ${shown.map(shellArg).join(", ")}`
     : `[WARN] Unknown key id '${id}' (${flag}). Skipping. This install writes no harness part with that name`;
 }
 

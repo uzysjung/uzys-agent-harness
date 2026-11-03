@@ -8,8 +8,9 @@
  *
  * 여기 있는 것은 **한 벌의 변환 규칙**이다. CLI 별 목적지는 각 transform 이 정한다:
  *   - Antigravity → `.agents/rules/<name>.md` (워크스페이스 룰, 네이티브)
- *   - OpenCode    → `AGENTS.md` 본문 embed (Codex 와 같은 파일 · 같은 블록 — `opencode.json` `instructions`
- *                   글롭은 룰을 병합하지 않는다)
+ *   - OpenCode    → `AGENTS.md` 본문 embed (Codex 와 같은 파일 · 같은 블록). 예외 하나(#944 · ADR-116): Codex 가 없고
+ *                   Antigravity 가 `.agents/rules/` 에 이번 룰을 전부 썼으면 `opencode.json` `instructions` 의
+ *                   `.agents/rules/*.md` 원소로 그 파일을 읽는다(OpenCode 공식: "combined with your AGENTS.md")
  *   - Codex       → `AGENTS.md` 본문 embed (Codex 는 룰 디렉터리가 없다 — AGENTS.md 계층뿐)
  */
 
@@ -108,8 +109,15 @@ export function ruleHeadings(harnessRoot: string): ReadonlySet<string> {
  * Codex 는 룰 디렉터리가 없고 `AGENTS.md` 계층만 읽는다. 파일 경계가 사라지므로 각 룰의 h1 을
  * h2 로 한 단 낮춰 문서 구조를 유지한다 — 그러지 않으면 h1 이 여러 개인 문서가 되고, 어디까지가
  * 한 룰인지 읽는 쪽이 알 수 없다.
+ *
+ * #944 — 상시 룰을 먼저, 경로 룰(`paths:`)을 뒤에 잇는다(각 묶음 안은 받은 순서). 이 덩어리는 파일 맨 끝이라 Codex 가
+ * 32 KiB 에서 멈추면 뒷부분이 빠진다 — 빠져도 Claude Code 가 지연 로드하는 것과 같은 경로 룰이 빠지게 한다.
  */
 export function renderRulesBlock(rules: ReadonlyArray<PortedRule>): string {
   if (rules.length === 0) return "";
-  return rules.map((r) => r.body.replace(/^#\s+/, "## ")).join("\n\n---\n\n");
+  const ordered = [
+    ...rules.filter((r) => r.paths.length === 0),
+    ...rules.filter((r) => r.paths.length > 0),
+  ];
+  return ordered.map((r) => r.body.replace(/^#\s+/, "## ")).join("\n\n---\n\n");
 }

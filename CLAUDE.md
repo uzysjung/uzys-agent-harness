@@ -108,11 +108,12 @@ TypeScript + tsup 번들 · Node 20+ · vitest · biome. 배포 = npm `@uzysjung
    (`cli-development` = `**/*.sh` #284 · `ui-components` = `**/*.tsx`·`**/*.jsx` #725 · `htmx-fastapi-ui` =
    템플릿 확장자 · `htmx-fastify-ui` · `htmx-hono-ui` = `**/*.tsx`·`**/*.jsx` #820 · #935) — 개발 사본
    `.claude/rules/` 는 여전히 전부 무조건 상주다. **지연 로드는 Claude Code 한정 효과**다:
-   설치본에 OpenCode 가 섞여 있으면 룰이 `AGENTS.md` **본문에 인라인으로 박혀** 나가므로
-   `paths:` 가 없는 것과 같아 매 세션 상주한다(`src/opencode/transform.ts` renderRulesBlock).
-   `opencode.json` 의 `instructions` 글롭은 룰을 병합하지 않는다 — 그 글롭은 템플릿 값(`docs/…`)
-   그대로이고 `tests/resident-reach-4cli.test.ts` 가 거기 `rules/` 가 들어오면 실패시킨다. 이
-   줄의 정정 경위 = #300 · #338.
+   설치본에 OpenCode 가 섞여 있으면 룰이 `AGENTS.md` **맨 끝 `## Harness Rules` 에 인라인으로 박혀**
+   나가므로 `paths:` 가 없는 것과 같아 매 세션 상주한다(`src/rules-port.ts` renderRulesBlock).
+   예외 하나 — Codex 가 없고 `AGENTS.md` 가 절 모델이고 그 실행이 `.agents/rules/` 를 다 썼으면 OpenCode 는
+   `opencode.json` `instructions` 의 `.agents/rules/*.md` 로 그 파일을 읽는다(여전히 상주 ·
+   `AGENTS.md` 에는 위치 안내만). OpenCode 단독이면 `instructions` 에 `rules/` 가 없다 —
+   `tests/resident-reach-4cli.test.ts` 가 문다. 경위 = #300 · #338 · ADR-116.
 4. **문서·자산 변경의 영향 범위를 도구·grep 으로 고르지 마라** — 애매하면 전체를 돌린다.
    근거 실측·전례 = `.claude/rules/test-policy.md` §영향 범위.
 5. **버전 확인은 `package.json`·`git tag` 로 한다.** `package-lock.json` 은 게시 계약 밖이라

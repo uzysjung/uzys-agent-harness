@@ -12,6 +12,10 @@
  *                                         `{ matcher?, hooks: [<핸들러>] }` 이고, 몫(sha)은 그 핸들러뿐이다
  *   `hooks.<Event>#<script>{}`            그 핸들러를 담은 묶음을 하네스가 **만들었다** — 핸들러를 빼서 묶음의
  *                                         `hooks` 가 비면 묶음째 걷는다. 설치자 묶음은 비어도 남긴다
+ *   `instructions[=<문자열>]`              **배열 원소 하나** — 그 배열에서 값이 이 문자열과 같은 원소(#944 · ADR-116).
+ *                                         값이 곧 정체라 "고쳤다" 가 없다: 없으면 끝에 붙이고, 빼면 같은 문자열 하나를
+ *                                         걷는다. 설치 전부터 같은 문자열이 있으면 설치자 것(Q3 — 기록하지 않는다).
+ *                                         `#` 는 훅 핸들러 전용(스크립트 호출 판정 · 묶음 소유)이라 쓰지 않는다
  *   `<path>{}` · `<path>[]`               하네스가 **만든** 빈 컨테이너 — strip 이 비었으면 걷는다
  *
  * 컨테이너 키가 따로 있는 이유: strip 은 "빈 컨테이너 정리"를 해야 하는데(설정 파일에 `hooks` 가 없던
@@ -74,6 +78,7 @@ type Parsed =
   | { kind: "container"; path: string[]; shape: "object" | "array" }
   | { kind: "group"; path: string[]; script: string }
   | { kind: "item"; path: string[]; script: string }
+  | { kind: "element"; path: string[]; value: string }
   | { kind: "prop"; path: string[]; name: string };
 
 /** `a` → [] + a · `a.b` → [a] + b (첫 `.` 에서만). */
@@ -83,6 +88,11 @@ function splitHead(s: string): string[] {
 }
 
 function parseKey(key: string): Parsed {
+  // 원소 키를 먼저 — 값(`.agents/rules/*.md`)에 `.` · `#` 가 들어 있어 아래 규칙으로 자르면 틀린다
+  const element = /^([^[]+)\[=(.*)\]$/s.exec(key);
+  if (element) {
+    return { kind: "element", path: splitHead(element[1] ?? ""), value: element[2] ?? "" };
+  }
   const container = /^(.+?)(\{\}|\[\])$/.exec(key);
   if (container) {
     const inner = parseKey(container[1] ?? "");
@@ -199,6 +209,9 @@ function readKey(
   }
   const holder = walk(root, p.path);
   if (p.kind === "container") return holder ?? undefined;
+  if (p.kind === "element") {
+    return Array.isArray(holder) && holder.includes(p.value) ? p.value : undefined;
+  }
   return isObject(holder) ? holder[p.name] : undefined;
 }
 
@@ -216,12 +229,12 @@ function writeKey(
 ): boolean {
   const p = parseKey(key);
   if (p.kind === "container" || p.kind === "group") return false;
-  // 컨테이너 사슬: 마지막 칸은 item 이면 배열, prop 이면 객체
+  // 컨테이너 사슬: 마지막 칸은 item · element 면 배열, prop 이면 객체
   let cur: JsonObject = root;
   const chain = p.path;
   for (const [i, seg] of chain.entries()) {
     const last = i === chain.length - 1;
-    const wantArray = last && p.kind === "item";
+    const wantArray = last && (p.kind === "item" || p.kind === "element");
     const existing = cur[seg];
     if (existing === undefined) {
       const fresh = wantArray ? [] : {};
@@ -231,6 +244,12 @@ function writeKey(
       return false;
     }
     if (!wantArray) cur = cur[seg] as JsonObject;
+  }
+  if (p.kind === "element") {
+    // 값이 곧 정체다 — 이미 있으면 바꿀 것이 없고, 없으면 끝에 붙인다(설치자 원소의 순서를 건드리지 않는다)
+    const arr = walk(root, chain) as unknown[];
+    if (!arr.includes(p.value)) arr.push(p.value);
+    return true;
   }
   if (p.kind === "item") {
     // 있으면 핸들러만 갈아 끼운다(묶음 · 형제 핸들러는 그대로). 없으면 렌더의 묶음을 새로 붙이고 그 묶음을
@@ -272,6 +291,13 @@ function deleteKey(
       ours.groups.splice(ours.gi, 1);
     }
     return all.length > 1;
+  }
+  if (p.kind === "element") {
+    // 같은 문자열 **하나**만 — 설치자가 같은 값을 또 적었으면 그 줄은 남는다
+    const arr = walk(root, p.path);
+    const at = Array.isArray(arr) ? arr.indexOf(p.value) : -1;
+    if (Array.isArray(arr) && at !== -1) arr.splice(at, 1);
+    return false;
   }
   const holderPath = p.kind === "container" ? p.path.slice(0, -1) : p.path;
   const name = p.kind === "container" ? (p.path.at(-1) ?? "") : p.name;

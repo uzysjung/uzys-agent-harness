@@ -297,6 +297,48 @@ describe.each(["codex", "opencode"] as const)("남은 틈 ① — %s 단독 upda
   });
 });
 
+// #944 (ADR-116) — Codex 없이 opencode + antigravity 면 `AGENTS.md` 는 룰 대신 위치 안내를 담는다. 룰은 `.agents/rules/` 에 있고
+//   (Antigravity 가 직접 · OpenCode 가 `instructions` 로) 그 파일이 상주한다 — 집합만 보고 "inside AGENTS.md" 라 하면 거짓이다.
+describe("남은 틈 ① — opencode + antigravity update (#944 위치 안내)", () => {
+  const rulesOnDisk = (projectDir: string): { files: number; tokens: number } => {
+    const dir = join(projectDir, ".agents", "rules");
+    const files = readdirSync(dir).filter((n) => n.endsWith(".md"));
+    return { files: files.length, tokens: files.reduce((s, n) => s + tokensOf(join(dir, n)), 0) };
+  };
+
+  it.each([
+    ["update", undefined],
+    ["--only hooks(AGENTS.md 를 다시 안 쓴다)", ["hooks"] as UpdateGroup[]],
+  ])("%s — 룰 수 · 토큰은 .agents/rules 디스크 · 'inside AGENTS.md' 라 하지 않는다", (_, only) => {
+    const { projectDir } = install("tooling", ["opencode", "antigravity"]);
+    const agents = readFileSync(join(projectDir, "AGENTS.md"), "utf8");
+    expect(agents, "대조군: 위치 안내를 쓴 설치다").toContain(
+      "하네스 룰은 `.agents/rules/` 에 있다",
+    );
+    const row = updateRow(projectDir, only);
+    const { files, tokens } = rulesOnDisk(projectDir);
+    expect(files, "대조군: 룰 파일이 있다").toBeGreaterThan(3);
+    expect(row).toContain(`rules ${files} ~${tokens} `);
+    expect(row).not.toContain("inside AGENTS.md");
+    expect(row).toContain(`AGENTS.md 1 ~${tokensOf(join(projectDir, "AGENTS.md"))}`);
+  });
+
+  it("대조군 — 같은 집합이라도 인라인으로 렌더된 설치본(opencode 뒤 antigravity 를 더한 install)은 'inside AGENTS.md' 다", () => {
+    const { projectDir } = install("tooling", ["opencode"]);
+    runInstall({
+      harnessRoot: ROOT,
+      projectDir,
+      spec: { tracks: ["tooling"], options: DEFAULT_OPTIONS, cli: ["antigravity"], projectDir },
+      mode: "add",
+      runExternal: () => ({ attempted: [], succeeded: 0, skipped: 0, excludedByCli: [] }),
+    });
+    expect(readFileSync(join(projectDir, "AGENTS.md"), "utf8")).not.toContain(
+      "하네스 룰은 `.agents/rules/` 에 있다",
+    );
+    expect(updateRow(projectDir, ["hooks"])).toMatch(/rules \d+ inside AGENTS\.md/);
+  });
+});
+
 describe("남은 틈 ① — antigravity 단독 update", () => {
   it("룰 수·토큰은 .agents/rules 디스크(설치자 룰 포함), 앵커 행은 AGENTS.md 디스크 (ADR-103)", () => {
     const { projectDir } = install("tooling", ["antigravity"]);

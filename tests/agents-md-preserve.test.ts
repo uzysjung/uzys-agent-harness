@@ -71,6 +71,7 @@ function render(
     rules: opts.rules ?? ["git-policy"],
     selectedInternalSkills: opts.skills ?? ["user-centered-explanation"],
     refreshOnly: opts.refreshOnly ?? false,
+    rulesViaInstructions: false,
   });
 }
 

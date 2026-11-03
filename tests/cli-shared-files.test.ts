@@ -3,7 +3,8 @@
  *
  * 무는 것은 **설치자 디스크의 라이브 파일**이다 — 백업에 남는 것은 보존이 아니다(지금 도는 CLI 는 백업을 안 읽는다).
  *   - `.codex/config.toml` (`toml-region`): 설치자 키·표는 그대로, 하네스 몫은 구간 둘. 겹치면 설치자 값이 이긴다.
- *   - `opencode.json` (`json-keys`): 설치자 설정은 그대로, 하네스 MCP 키(`mcp.<name>`)만.
+ *   - `opencode.json` (`json-keys`): 설치자 설정은 그대로, 하네스 MCP 키(`mcp.<name>`)와 — Antigravity 와 함께 · Codex 없이 —
+ *     `instructions` 의 룰 원소 하나만(#944).
  *   - `AGENTS.md` (`marker-md` 첫 접촉): 설치자 본문은 바이트 그대로, 하네스 몫은 파일 끝 블록 하나.
  * install(첫 설치) · 재설치 · update 가 같은 변환을 타므로 셋 다 같은 결과여야 한다.
  */
@@ -326,11 +327,56 @@ describe("opencode.json — 설치자 설정은 그대로, 하네스 MCP 키만 
     expect(live.theme).toBe("mine");
     expect(live.mcp.mine).toEqual(INSTALLER_OPENCODE.mcp.mine);
     expect(live.mcp.context7).toMatchObject({ type: "local" });
+    // `instructions` 는 OpenCode 단독 설치에서 하네스 몫이 아니다 — 룰 원소는 Antigravity 와 함께일 때만(#944, 아래)
     for (const key of ["$schema", "agent", "permission", "instructions", "plugin", "command"]) {
       expect(live, `${key} 는 하네스 몫이 아니다`).not.toHaveProperty(key);
     }
     expect(backups()).toEqual([]);
     expect(report.opencode?.opencodeJson).toMatchObject({ action: "updated", kept: [] });
+  });
+
+  it("#944 opencode+antigravity 첫 설치: 하네스 몫이 `instructions` 의 룰 원소 하나로 넓어진다 — 템플릿 기본값은 여전히 끼워 넣지 않는다 · 재설치 · update 바이트 동일", () => {
+    put("opencode.json", `${JSON.stringify(INSTALLER_OPENCODE, null, 2)}\n`);
+    install(["opencode", "antigravity"]);
+    const live = JSON.parse(read("opencode.json")) as Record<string, unknown>;
+    expect(live.model).toBe(INSTALLER_OPENCODE.model);
+    expect(live.instructions).toEqual([".agents/rules/*.md"]);
+    for (const key of ["$schema", "agent", "permission", "plugin", "command"]) {
+      expect(live, `${key} 는 하네스 몫이 아니다`).not.toHaveProperty(key);
+    }
+    const keys = (readInstallLog(projectDir)?.portions ?? [])
+      .filter((p) => p.path === "opencode.json")
+      .map((p) => p.key);
+    expect(keys).toEqual(
+      expect.arrayContaining(["instructions[=.agents/rules/*.md]", "instructions[]"]),
+    );
+    const first = read("opencode.json");
+    install(["opencode", "antigravity"]);
+    update();
+    expect(read("opencode.json")).toBe(first);
+    expect(backups()).toEqual([]);
+  });
+
+  it("#944 화면: 하네스가 쓴 룰 원소를 서버처럼 댄다 — 설치자가 먼저 가진 같은 원소 · OpenCode 단독은 대지 않는다", () => {
+    const row = (cli: CliBase[], report: InstallReport): string =>
+      screen(cli, report).find((l) => l.includes("opencode.json")) ?? "";
+    put("opencode.json", `${JSON.stringify(INSTALLER_OPENCODE, null, 2)}\n`);
+    const ours = row(["opencode", "antigravity"], install(["opencode", "antigravity"]));
+    expect(ours).toContain("harness mcp: ");
+    expect(ours).toContain("harness instructions: .agents/rules/*.md");
+
+    // 대조군 — 설치자가 먼저 같은 원소를 가진 파일(기록에 없다 = 하네스 몫이 아니다)
+    rmSync(projectDir, { recursive: true, force: true });
+    projectDir = mkdtempSync(join(tmpdir(), "cli-shared-"));
+    put("opencode.json", `${JSON.stringify({ instructions: [".agents/rules/*.md"] })}\n`);
+    const theirs = row(["opencode", "antigravity"], install(["opencode", "antigravity"]));
+    expect(theirs).toContain("harness mcp: ");
+    expect(theirs).not.toContain("harness instructions");
+
+    // 대조군 — OpenCode 단독은 원소를 쓰지 않는다
+    rmSync(projectDir, { recursive: true, force: true });
+    projectDir = mkdtempSync(join(tmpdir(), "cli-shared-"));
+    expect(row(["opencode"], install(["opencode"]))).not.toContain("harness instructions");
   });
 
   it("같은 이름의 설치자 서버는 설치자 값이 이긴다 · 파일이 없으면 템플릿 바탕 + 하네스 서버로 만든다", () => {

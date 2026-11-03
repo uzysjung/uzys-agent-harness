@@ -29,13 +29,14 @@ const TEMPLATE = readFileSync(join(HARNESS_ROOT, "templates/AGENTS.md.template")
  * `antigravity-anchor-retire.test.ts` — 26.164.0 픽스처가 거기 있다).
  */
 describe("#739 병합과 걷기가 같은 절을 설치자 것으로 본다", () => {
-  it("설치자 절 셋(Harness Rules 안 · Session Start 뒤 · 파일 끝) — update 가 되살리는 절 = uninstall 이 남기는 절", () => {
+  it("설치자 절 셋(Session Start 안 · Protected Files 뒤 · 파일 끝 Harness Rules 안) — update 가 되살리는 절 = uninstall 이 남기는 절", () => {
     const rules = ruleHeadings(HARNESS_ROOT);
     expect(rules.has("## Testing"), "픽스처 자기검증 — 실제 배포 룰 제목").toBe(true);
+    // #944 — 템플릿 순서: Project Context → Project Rules → Session Start → Protected Files → (설치자 절) → Harness Rules
     const doc = (
-      harnessRules: string,
       sessionStart: string,
-      tail: string,
+      afterProtected: string,
+      harnessRules: string,
       anchorHeading = "## 1. Principle",
     ): string =>
       [
@@ -49,10 +50,6 @@ describe("#739 병합과 걷기가 같은 절을 설치자 것으로 본다", ()
         "",
         wrapHarnessBlock(ANCHOR_BLOCK, `# Working Principles\n\n${anchorHeading}\n\nbody`),
         "",
-        "## Harness Rules",
-        "",
-        harnessRules,
-        "",
         "## Session Start",
         "",
         sessionStart,
@@ -60,13 +57,17 @@ describe("#739 병합과 걷기가 같은 절을 설치자 것으로 본다", ()
         "## Protected Files",
         "",
         "- lock 파일은 손으로 고치지 않는다.",
-        tail,
+        "",
+        ...(afterProtected === "" ? [] : [afterProtected, ""]),
+        "## Harness Rules",
+        "",
+        harnessRules,
       ].join("\n");
-    const rendered = doc("## Testing\n\nrule body", "start here", "");
+    const rendered = doc("start here", "", "## Testing\n\nrule body");
     const existing = doc(
-      "## Testing\n\nrule body\n\n## Test\n\nTEST-TEXT",
       "start here\n\n## Release notes\n\nRELEASE-TEXT",
-      "\n## Git\n\nGIT-TEXT\n",
+      "## Git\n\nGIT-TEXT",
+      "## Testing\n\nrule body\n\n## Test\n\nTEST-TEXT",
       // 옛 판 앵커 제목(본문 절 안) — 두 경로 모두 본문 소유 규칙에 맡겨야 한다. 병합 호출부가 절(region)을 잘못 넘기면
       // 이 제목을 설치자 절로 되살려 걷기와 갈린다(리뷰 NOTE-2)
       "## 1. Old principle",
@@ -79,10 +80,12 @@ describe("#739 병합과 걷기가 같은 절을 설치자 것으로 본다", ()
       template: TEMPLATE,
       harnessRuleHeadings: rules,
     });
-    expect(merged.startsWith(rendered), "픽스처 자기검증 — 설치자 절은 렌더 뒤에 붙는다").toBe(
-      true,
-    );
-    const revived = headings(merged.slice(rendered.length));
+    // 픽스처 자기검증 — 설치자 절은 렌더의 `## Harness Rules` **바로 앞**에 들어간다(#944): 렌더의 앞 · 뒤가 그대로다
+    const cut = rendered.indexOf("\n## Harness Rules\n");
+    expect(cut).toBeGreaterThan(0);
+    expect(merged.startsWith(rendered.slice(0, cut))).toBe(true);
+    expect(merged.endsWith(rendered.slice(cut))).toBe(true);
+    const revived = headings(merged.slice(cut, merged.length - (rendered.length - cut)));
 
     const kept = stripHarnessFromAgentsMd({
       existing,
@@ -93,7 +96,7 @@ describe("#739 병합과 걷기가 같은 절을 설치자 것으로 본다", ()
     const left = headings(kept ?? "");
 
     // `## Test` 는 룰 제목 `## Testing` 의 앞부분이다 — 병합이 부분 문자열로 가르던 때는 여기서 갈렸다
-    expect(revived).toEqual(["## Test", "## Release notes", "## Git"]);
+    expect(revived).toEqual(["## Release notes", "## Git", "## Test"]);
     expect(left).toEqual(revived);
   });
 });
@@ -162,21 +165,23 @@ describe("#739 update 결과 — 부분 문자열 대조를 걷어낸 뒤", () =
     const harnessWrote = agents()
       .replace(`${ANCHOR_BLOCK.start}\n`, "")
       .replace(`${ANCHOR_BLOCK.end}\n`, "")
-      .replace(/<!-- uzys-harness:skills:(start|end) -->\n/g, "");
+      .replace(/<!-- uzys-harness:(skills|rules):(start|end) -->\n/g, "");
     expect(harnessWrote, "픽스처 자기검증 — 마커 없는 옛 판").not.toContain("<!-- uzys-harness:");
     recordAsHarnessWritten(harnessWrote);
     const MINE = "## My rules\n\nMY-RULES-TEXT — 배포는 금요일에 하지 않는다.";
-    expect(harnessWrote, "픽스처 자기검증 — 끼울 자리가 있다").toContain("\n## Harness Rules\n");
+    // `## Project Rules` 본문의 끝 = 다음 절(codex 판은 `## Session Start`, #944 순서) 바로 앞
+    expect(harnessWrote, "픽스처 자기검증 — 끼울 자리가 있다").toContain("\n## Session Start\n");
     writeFileSync(
       agentsPath(),
-      harnessWrote.replace("\n## Harness Rules\n", `\n${MINE}\n\n## Harness Rules\n`),
+      harnessWrote.replace("\n## Session Start\n", `\n${MINE}\n\n## Session Start\n`),
     );
 
     run("update");
     const after = agents();
     expect(after).toContain(MINE);
-    // 되살린 자리는 다른 설치자 절과 같다 — 파일 끝. 앵커 제목은 한 벌만(옛 본문의 하네스 제목은 되살리지 않는다)
-    expect(after.trimEnd().endsWith("MY-RULES-TEXT — 배포는 금요일에 하지 않는다.")).toBe(true);
+    // 되살린 자리는 다른 설치자 절과 같다 — `## Harness Rules` 바로 앞(#944). 앵커 제목은 한 벌만(옛 본문의 하네스 제목은
+    // 되살리지 않는다)
+    expect(after).toContain(`${MINE}\n\n## Harness Rules\n`);
     expect(after.split("\n## 1. Understand what success means\n").length - 1).toBe(1);
 
     run("update");
@@ -235,9 +240,11 @@ describe("#739 update 결과 — 부분 문자열 대조를 걷어낸 뒤", () =
   it("v26.152 이 남긴 마커 없는 AGENTS.md 의 Project Rules 에 설치자가 적은 `## My rules` — update 뒤 그 절만 남고 옛 6원칙은 없다", () => {
     const legacy = writeLegacy152();
     const MINE = "## My rules\n\nMY-RULES-TEXT — 배포는 금요일에 하지 않는다.";
+    // `## Project Rules` 본문의 끝(#944 순서 — codex 판은 다음 절이 `## Session Start`)
+    expect(legacy, "픽스처 자기검증 — 끼울 자리").toContain("\n## Session Start\n");
     writeFileSync(
       agentsPath(),
-      legacy.replace("\n## Harness Rules\n", `\n${MINE}\n\n## Harness Rules\n`),
+      legacy.replace("\n## Session Start\n", `\n${MINE}\n\n## Session Start\n`),
     );
 
     run("update");
@@ -252,10 +259,11 @@ describe("#739 update 결과 — 부분 문자열 대조를 걷어낸 뒤", () =
   it("v26.152 앵커 절 본문에 설치자가 한 줄을 더했으면 — 그 절은 설치자 글로 남는다(제목만 같다고 지우지 않는다)", () => {
     const legacy = writeLegacy152();
     const ADDED = "MINE-ADDED-LINE — 우리 팀은 금요일 배포 금지.";
-    expect(legacy, "픽스처 자기검증 — 덧쓸 자리").toContain("\n## Harness Rules\n");
+    // 앵커 마지막 절 본문의 끝 = `## Project Rules` 다음 절(#944 순서 — codex 판은 `## Session Start`) 바로 앞
+    expect(legacy, "픽스처 자기검증 — 덧쓸 자리").toContain("\n## Session Start\n");
     writeFileSync(
       agentsPath(),
-      legacy.replace("\n## Harness Rules\n", `\n${ADDED}\n\n## Harness Rules\n`),
+      legacy.replace("\n## Session Start\n", `\n${ADDED}\n\n## Session Start\n`),
     );
 
     run("update");
@@ -265,7 +273,7 @@ describe("#739 update 결과 — 부분 문자열 대조를 걷어낸 뒤", () =
     expect(after).not.toContain(OLD_ANCHOR_FIRST);
   });
 
-  it("앵커 제목이 바뀐 판에서 update — 옛 앵커 절이 파일 끝에 되살아나지 않는다", () => {
+  it("앵커 제목이 바뀐 판에서 update — 옛 앵커 절이 설치자 절 자리(`## Harness Rules` 앞)에 되살아나지 않는다", () => {
     run();
     const NOW = "## 1. Understand what success means";
     const OLD = "## 1. Resolve what matters, then act";
@@ -276,6 +284,7 @@ describe("#739 update 결과 — 부분 문자열 대조를 걷어낸 뒤", () =
     const after = agents();
     expect(after).not.toContain(OLD);
     expect(after.split(`\n${NOW}\n`).length - 1).toBe(1);
-    expect(after.trimEnd().endsWith("직접 수정하지 않는다.")).toBe(true);
+    // #944 — 되살린 설치자 절은 `## Protected Files` 와 `## Harness Rules` 사이에 들어간다. 그 자리가 비어 있다
+    expect(after).toContain("직접 수정하지 않는다.\n\n## Harness Rules\n");
   });
 });

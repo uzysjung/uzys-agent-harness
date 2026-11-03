@@ -380,12 +380,43 @@ export interface AgentsMdWriteResult {
   blockRecordDropped?: true;
 }
 
-export function writeAgentsMd(params: WriteAgentsMdParams): AgentsMdWriteResult {
-  const abs = join(params.projectDir, AGENTS_MD);
+function agentsMdState(
+  projectDir: string,
+  baseline: ReadonlyMap<string, string>,
+  record: SharedRecord,
+): { abs: string; disk: string | null; recordedBlock: boolean; model: AgentsMdModel } {
+  const abs = join(projectDir, AGENTS_MD);
   const disk = existsSync(abs) ? readFileSync(abs, "utf8") : null;
-  const recordedBlock = (params.record.portions ?? []).some((p) => p.path === AGENTS_MD);
+  const recordedBlock = (record.portions ?? []).some((p) => p.path === AGENTS_MD);
+  return {
+    abs,
+    disk,
+    recordedBlock,
+    model: agentsMdModel(disk, baseline.has(AGENTS_MD), recordedBlock),
+  };
+}
+
+/**
+ * #944 R2-B1 — 이번 실행의 `AGENTS.md` 쓰기가 어느 모델로 갈지(`writeAgentsMd` 와 같은 입력 · 같은 판정). 위치 안내와 룰 원소는
+ * `sections` 에서만 쓴다 — 매 실행 다시 렌더되는 곳이라 조건이 깨지면 다음 실행이 인라인으로 되돌린다. 첫 접촉 블록은 설치자가
+ * 고치면 굳으므로(`kept`) 위치 안내가 굳으면 CLI 집합이 바뀐 뒤 룰이 0번이 된다 — 블록은 늘 인라인이다.
+ */
+export function agentsMdModelFor(
+  projectDir: string,
+  baseline: ReadonlyMap<string, string>,
+  record: SharedRecord,
+): AgentsMdModel {
+  return agentsMdState(projectDir, baseline, record).model;
+}
+
+export function writeAgentsMd(params: WriteAgentsMdParams): AgentsMdWriteResult {
+  const { abs, disk, recordedBlock, model } = agentsMdState(
+    params.projectDir,
+    params.baseline,
+    params.record,
+  );
   const recordedByHarness = params.baseline.has(AGENTS_MD);
-  if (agentsMdModel(disk, recordedByHarness, recordedBlock) === "sections") {
+  if (model === "sections") {
     // #774 ④′ — 기록 없는 옛 하네스 파일: 안 채운 옛 스캐폴드는 렌더로 바꾼다(N4 — 채운 절은 그대로 이어받는다)
     const legacyUnrecorded = disk !== null && !recordedByHarness && isLegacyHarnessAgentsMd(disk);
     const merged = mergeAgentsMdDetailed({

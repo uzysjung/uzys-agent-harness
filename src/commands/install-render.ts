@@ -1,3 +1,4 @@
+import { hasRulesPointer } from "../agents-md-render.js";
 import { retiredFeaturesLeftBehind } from "../codex/config-toml.js";
 import { codexConfigLabel, codexConfigPath } from "../codex/opt-in.js";
 import { hasTrustEntry, tomlBasicString } from "../codex/trust-entry.js";
@@ -68,6 +69,7 @@ import {
 import { HARNESS_ANCHOR_FILE, HARNESS_IMPORT_LINE } from "../project-claude-merge.js";
 import { residentCostFor, residentEntries } from "../resident-entries.js";
 import type { SharedWriteResult } from "../shared-write.js";
+import { shellArg } from "../shell-arg.js";
 import type { CliBase, CliTargets, InstallSpec, OptionFlags } from "../types.js";
 import type { CatalogRemoved, UpdateModeReport } from "../update-mode.js";
 
@@ -403,7 +405,8 @@ export function renderUpdateSummary(
  *    `*.backup-*` 는 아니다. claude = `.claude/rules/`, Antigravity = `.agents/rules/`(앵커 파일 제외 —
  *    그건 CLAUDE.md 행이 잰다). Codex · OpenCode 는 룰 폴더가 없고 룰이 `AGENTS.md` 본문에 인라인이다
  *    — 룰마다 갈라 잴 수 없어 수는 계획 엔트리로 두고 토큰은 `AGENTS.md` 통째 숫자에 맡긴다
- *    (`rulesInsideAgentsMd`).
+ *    (`rulesInsideAgentsMd`). 예외(#944): `AGENTS.md` 가 위치 안내를 담았으면 룰은 `.agents/rules/` 파일이다
+ *    (Antigravity 가 직접 · OpenCode 가 `instructions` 로) — 그 파일을 잰다.
  *  - 스킬: 계획한 번들 스킬 중 **그 CLI 자리(`.claude/skills` · `.agents/skills`)에 있는 것**을 디스크
  *    판으로. 폴더 전부를 세지 않는 이유는 외부 스킬이 같은 폴더에 깔리고 그쪽은 `external unmeasured`
  *    로 따로 세기 때문이다(두 번 세지 않는다).
@@ -430,12 +433,13 @@ function residentEntriesOnDisk(
           }))
       : [];
   };
-  // Codex · OpenCode 가 있으면 룰은 `AGENTS.md` 본문(인라인 — 계획 엔트리로 센다), Antigravity 만이면 `.agents/rules/`
-  // 파일이다(옛 앵커 이름은 은퇴 대상이라 세지 않는다 — frontmatter 가 없어 Antigravity 가 읽지도 않는다).
+  // Codex · OpenCode 가 있으면 룰은 `AGENTS.md` 본문(인라인 — 계획 엔트리로 센다), Antigravity 만이거나 `AGENTS.md` 가 위치 안내를
+  // 담았으면(#944 — Antigravity 가 직접, OpenCode 가 `instructions` 로 읽는다) `.agents/rules/` 파일이다(옛 앵커 이름은 은퇴 대상이라
+  // 세지 않는다 — frontmatter 가 없어 Antigravity 가 읽지도 않는다).
   const rules =
     surface === "claude"
       ? mdFiles(join(".claude", "rules"), "rules")
-      : rulesInline(spec.cli)
+      : rulesInline(spec)
         ? planned.filter((e) => e.target.startsWith(".claude/rules/"))
         : mdFiles(join(".agents", "rules"), "rules", "uzys-harness.md");
   const slot = hasClaude ? join(".claude", "skills") : join(".agents", "skills");
@@ -466,7 +470,7 @@ function residentEntriesOnDisk(
  *  - claude: 앵커 · 루트 `CLAUDE.md` · 남아 있는 구 앵커(`.claude/CLAUDE.md`, ADR-060 이행 전 위치 —
  *    지우지 않으므로 계속 읽힌다). 루트 `CLAUDE.md` 는 설치자 본문까지 잰다: 템플릿 스캐폴드로 재면
  *    키운 본문이 화면에서 사라진다.
- *  - Codex · OpenCode · Antigravity: `AGENTS.md` 통째 — 하네스 절 · (Codex · OpenCode 면) 인라인 룰 · 설치자 절이
+ *  - Codex · OpenCode · Antigravity: `AGENTS.md` 통째 — 하네스 절 · (Codex · OpenCode 면, 위치 안내가 아니면) 인라인 룰 · 설치자 절이
  *    한 파일에 섞여 있다(ADR-103 — Antigravity 의 옛 앵커 파일은 은퇴했다).
  */
 function contextFilesOnDisk(spec: InstallSpec): string[] {
@@ -479,13 +483,13 @@ function contextFilesOnDisk(spec: InstallSpec): string[] {
 }
 
 /**
- * #615 남은 틈 ① — Codex · OpenCode 의 룰은 `AGENTS.md` 안에 있다. 그 파일을 통째로 쟀으니 룰 토큰을
+ * #615 남은 틈 ① — Codex · OpenCode 의 룰은 `AGENTS.md` 안에 있다(#944 — 위치 안내를 쓴 파일은 아니다, `rulesInline`). 그 파일을 통째로 쟀으니 룰 토큰을
  * 따로 더하면 두 번 센다 — 룰 토큰을 빼고 "파일 안에 있다"고 말한다. 룰 **수**는 계획 엔트리다: 이번
  * update 가 외부 변환을 돌렸으면(`--only` 로 빼지 않았으면) 방금 그 수대로 다시 썼고, 안 돌렸으면 옛 판이
  * 남아 있을 수 있어 "planned" 라고 붙인다.
  */
 function rulesInsideAgentsMd(spec: InstallSpec, cost: ResidentCost): ResidentCost {
-  if (anchorSurface(spec.cli).scaffold !== "agents-md" || !rulesInline(spec.cli)) return cost;
+  if (anchorSurface(spec.cli).scaffold !== "agents-md" || !rulesInline(spec)) return cost;
   const rendered = spec.updateOnly === undefined || spec.updateOnly.includes("external");
   return makeResidentCost({
     ...cost,
@@ -495,9 +499,14 @@ function rulesInsideAgentsMd(spec: InstallSpec, cost: ResidentCost): ResidentCos
   });
 }
 
-/** 룰이 `AGENTS.md` 본문에 인라인으로 들어가는 집합인가 — Codex · OpenCode 가 있을 때(`agents-md-render.ts`). */
-function rulesInline(cli: CliTargets): boolean {
-  return cli.includes("codex") || cli.includes("opencode");
+/**
+ * 룰이 `AGENTS.md` 본문에 인라인으로 들어가 있는가 — Codex · OpenCode 가 있을 때(`agents-md-render.ts`). #944 — 렌더가 룰 대신
+ * 위치 안내를 썼으면(디스크의 `AGENTS.md` 바이트로 본다 — 이번 실행이 그 파일을 안 썼어도 지금 상주하는 것은 그 바이트다) 아니다.
+ */
+function rulesInline(spec: InstallSpec): boolean {
+  if (!spec.cli.includes("codex") && !spec.cli.includes("opencode")) return false;
+  const agents = join(spec.projectDir, "AGENTS.md");
+  return !(existsSync(agents) && hasRulesPointer(readFileSync(agents, "utf8")));
 }
 
 /**
@@ -597,7 +606,7 @@ export function renderCliArtifacts(
     }
   }
   if (report.opencode) {
-    // #563 — 하네스 몫은 MCP 키(`mcp.<name>`)뿐이다. 나머지 키는 파일을 새로 만들 때만 깔린다.
+    // #563 — 하네스 몫은 MCP 키(`mcp.<name>`)와 #944 의 룰 원소(`instructions[=…]`, 조건부)뿐이다. 나머지 키는 파일을 새로 만들 때만 깔린다.
     const opencodeJson = report.opencode.opencodeJson;
     const opencodeRow = opencodeJson
       ? sharedRow(opencodeJson, opencodeMcpPart(opencodeJson))
@@ -772,12 +781,21 @@ function sharedLeftRow(f: NonNullable<UpdateModeReport["sharedLeft"]>[number]): 
   return assetRow("skip", f.path, `${parts.join(" · ")}${legacy}`);
 }
 
-/** `opencode.json` 에 하네스가 쓴 서버 이름 — 기록할 몫(`mcp.<name>`)에서. */
+/**
+ * `opencode.json` 에 하네스가 쓴 몫 — 서버 이름(`mcp.<name>`)과, #944 룰 원소(`instructions[=…]`)를 하네스가 썼으면 그 값.
+ * 설치자가 먼저 갖고 있던 같은 원소는 하네스 몫이 아니라 말하지 않는다(기록에 없다).
+ */
 function opencodeMcpPart(r: SharedWriteResult): string {
-  const names = harnessKeysInFile(r)
+  const keys = harnessKeysInFile(r);
+  const names = keys
     .map((k) => /^mcp\.(.+)$/.exec(k)?.[1])
     .filter((n): n is string => n !== undefined && !n.endsWith("{}"));
-  return names.length > 0 ? `harness mcp: ${names.join(" · ")}` : "no harness part in the file";
+  const instructions = keys.flatMap((k) => /^instructions\[=(.*)\]$/.exec(k)?.[1] ?? []);
+  const parts = [
+    ...(names.length > 0 ? [`harness mcp: ${names.join(" · ")}`] : []),
+    ...(instructions.length > 0 ? [`harness instructions: ${instructions.join(" · ")}`] : []),
+  ];
+  return parts.length > 0 ? parts.join(" · ") : "no harness part in the file";
 }
 
 /** config.toml 의 하네스 구간 — 파일 순서(`top` 이 맨 앞)대로. */
@@ -1117,7 +1135,7 @@ function renderPhase1Rows(
         assetRow(
           "skip",
           "to keep it out",
-          `deleting is undone by the next update — re-run \`agent-harness install\` with your usual flags plus ${withoutArgs.map((a) => `--without ${a}`).join(" ")}, then delete it again (${KEPT_OUT_SCOPE})`,
+          `deleting is undone by the next update — re-run \`agent-harness install\` with your usual flags plus ${withoutArgs.map((a) => `--without ${shellArg(a)}`).join(" ")}, then delete it again (${KEPT_OUT_SCOPE})`,
         ),
       );
     }
@@ -1844,7 +1862,7 @@ export function excludedKeyParts(f: {
 }): string[] {
   const parts: string[] = [];
   if (f.removedOut.length > 0) {
-    const asked = f.removedOut.map((id) => `--without ${id}`).join(" ");
+    const asked = f.removedOut.map((id) => `--without ${shellArg(id)}`).join(" ");
     parts.push(`removed the harness part: ${f.removedOut.join(", ")} (you asked: ${asked})`);
   }
   if (f.removedEdited.length > 0) {
@@ -1893,11 +1911,11 @@ export function catalogRemovedRows(items: ReadonlyArray<CatalogRemoved>): string
           : "다른 CLI";
         parts.push(`${e.replacedBy} 는 ${only} 전용이라 이 설치본의 CLI 에는 깔리지 않는다`);
       } else {
-        parts.push(`새 것은 agent-harness install --with ${e.replacedBy}`);
+        parts.push(`새 것은 agent-harness install --with ${shellArg(e.replacedBy)}`);
       }
-      parts.push(`옛 것을 치우려면 agent-harness uninstall --only ${e.id}`);
+      parts.push(`옛 것을 치우려면 agent-harness uninstall --only ${shellArg(e.id)}`);
     } else {
-      parts.push(`치우려면 agent-harness uninstall --only ${e.id}`);
+      parts.push(`치우려면 agent-harness uninstall --only ${shellArg(e.id)}`);
     }
     return assetRow("skip", e.id, parts.join(" · "));
   });
@@ -1909,8 +1927,8 @@ export function excludedStillThereRows(items: ReadonlyArray<ExcludedStillThere>)
   // `--without` 없이 install 하는 것이다(install 의 선택이 기록을 대체한다)
   return items.map((e) =>
     e.catalog
-      ? `  ${c.yellow(symbol.skip)} ${e.id} — excluded, so the harness no longer updates it (still installed). To manage it again: run install (without --without ${e.id}; add --with ${e.id} if it is opt-in) · remove it: agent-harness uninstall --only ${e.id}`
-      : `  ${c.yellow(symbol.skip)} ${e.id} — excluded (still on disk — an earlier install put it there; the harness does not delete it. Remove the file yourself, or run uninstall) · to manage it again: run install without --without ${e.id}`,
+      ? `  ${c.yellow(symbol.skip)} ${e.id} — excluded, so the harness no longer updates it (still installed). To manage it again: run install (without --without ${shellArg(e.id)}; add --with ${shellArg(e.id)} if it is opt-in) · remove it: agent-harness uninstall --only ${shellArg(e.id)}`
+      : `  ${c.yellow(symbol.skip)} ${e.id} — excluded (still on disk — an earlier install put it there; the harness does not delete it. Remove the file yourself, or run uninstall) · to manage it again: run install without --without ${shellArg(e.id)}`,
   );
 }
 
@@ -1932,10 +1950,10 @@ export function releasedRows(
 ): string[] {
   return items.map((r) =>
     notInstalled.has(r.id)
-      ? `  ${c.yellow(symbol.skip)} ${r.id} — selected again, but ${notInstalled.get(r.id)}: this install did not pass --without ${r.id}`
+      ? `  ${c.yellow(symbol.skip)} ${r.id} — selected again, but ${notInstalled.get(r.id)}: this install did not pass --without ${shellArg(r.id)}`
       : r.again
-        ? `  ${c.green("↺")} ${r.id} — dropped earlier, installed again: this install did not pass --without ${r.id}`
-        : `  ${c.green("↺")} ${r.id} — no longer excluded: ${r.tail} (this install did not pass --without ${r.id})`,
+        ? `  ${c.green("↺")} ${r.id} — dropped earlier, installed again: this install did not pass --without ${shellArg(r.id)}`
+        : `  ${c.green("↺")} ${r.id} — no longer excluded: ${r.tail} (this install did not pass --without ${shellArg(r.id)})`,
   );
 }
 
@@ -1959,7 +1977,7 @@ export const KEPT_OUT_SCOPE =
  * 명령(`--without <키 id>`)과 그 효과 범위를 같은 줄 끝에 흐리게 붙인다 — update 가 지키고, 다음 install 이 대체한다.
  */
 export function restoredKeysPart(ids: ReadonlyArray<string>): string {
-  const drop = ids.map((id) => `--without ${id}`).join(" ");
+  const drop = ids.map((id) => `--without ${shellArg(id)}`).join(" ");
   return `was missing — restored: ${ids.join(", ")} ${c.dim(`(drop it: install … ${drop} — ${KEPT_OUT_SCOPE})`)}`;
 }
 
@@ -1985,7 +2003,7 @@ export function restoredFilePart(f: {
   const how = f.how === undefined ? "" : ` — ${f.how}`;
   const drop =
     f.ids !== undefined && f.ids.length > 0
-      ? ` ${c.dim(`(drop it: install … ${f.ids.map((id) => `--without ${id}`).join(" ")} — ${KEPT_OUT_SCOPE})`)}`
+      ? ` ${c.dim(`(drop it: install … ${f.ids.map((id) => `--without ${shellArg(id)}`).join(" ")} — ${KEPT_OUT_SCOPE})`)}`
       : f.clis.length === 0
         ? ""
         : ` ${c.dim(`(drop this CLI for good: ${f.clis.map((cli) => `agent-harness uninstall --cli ${cli}`).join(" and ")})`)}`;

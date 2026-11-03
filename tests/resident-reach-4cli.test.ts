@@ -75,6 +75,8 @@ const installed = new Map<CliBase, Installed>();
 const COMBOS: ReadonlyArray<ReadonlyArray<CliBase>> = [
   ["codex", "opencode"],
   ["claude", "codex"],
+  // #944 (ADR-116) — Codex 가 없으면 OpenCode 는 `AGENTS.md` 가 아니라 `instructions` 로 `.agents/rules/` 를 읽는다
+  ["opencode", "antigravity"],
   [...CLI_BASES],
 ];
 const combos = new Map<string, Installed>();
@@ -124,23 +126,45 @@ beforeAll(() => {
  * 자리)로 내보내도 전 스위트가 green 이다 — 독립 검증 H-3 이 변이로 실증했다. 도달은 "파일이
  * 어딘가 있다"가 아니라 "그 CLI 의 로딩 경로 안에 있다"이므로, CLI 별 목적지를 명시한다.
  */
-const RULE_DESTINATION: Record<CliBase, (f: string) => boolean> = {
+const RULE_DESTINATION: Record<CliBase, (f: string, inst: Installed) => boolean> = {
   // Claude Code — `.claude/rules/<name>.md`
   claude: (f) => f.startsWith(".claude/rules/"),
   // Codex — 룰 디렉터리가 없다. `AGENTS.md` 계층이 유일한 로딩 경로다.
   codex: (f) => f === "AGENTS.md",
-  // OpenCode — 프로젝트 루트 `AGENTS.md` 를 자동으로 읽는다(codex 와 같은 파일을 공유한다).
-  opencode: (f) => f === "AGENTS.md",
+  // OpenCode — 프로젝트 루트 `AGENTS.md` 를 자동으로 읽고, `opencode.json` 의 `instructions` 가 가리키는 파일을 함께 읽는다
+  // (공식: "combined with your AGENTS.md"). #944 — Codex 가 없는 조합은 룰을 `instructions` 의 `.agents/rules/*.md` 로 받는다.
+  opencode: (f, inst) => f === "AGENTS.md" || instructionFiles(inst).has(f),
   // Antigravity — `.agents/rules/*.md` 워크스페이스 룰.
   antigravity: (f) => f.startsWith(".agents/rules/"),
 };
+
+/** 글롭 하나 → 정규식(`*` = 한 칸 · `**` = 여러 칸). OpenCode 의 `instructions` 상대 경로를 이 설치본 안에서 푼다. */
+function globToRegExp(glob: string): RegExp {
+  let re = "";
+  for (let i = 0; i < glob.length; i++) {
+    const ch = glob[i] ?? "";
+    if (ch === "*" && glob[i + 1] === "*") {
+      re += ".*";
+      i++;
+    } else if (ch === "*") re += "[^/]*";
+    else re += ch.replace(/[.+?^${}()|[\]\\]/g, "\\$&");
+  }
+  return new RegExp(`^${re}$`);
+}
+
+/** `opencode.json` 의 `instructions` 가 **실제로** 가리키는 설치본 파일 — 없는 파일은 도달이 아니다(#300). */
+function instructionFiles(inst: Installed): Set<string> {
+  const cfg = JSON.parse(inst.text.get("opencode.json") ?? "{}") as { instructions?: unknown };
+  const globs = Array.isArray(cfg.instructions) ? cfg.instructions.map(String) : [];
+  return new Set(inst.files.filter((f) => globs.some((g) => globToRegExp(g).test(f))));
+}
 
 function reaches(cli: CliBase, needle: string): boolean {
   const inst = installed.get(cli);
   if (!inst) throw new Error(`설치 산출물 없음: ${cli}`);
   const inDestination = RULE_DESTINATION[cli];
   for (const [path, body] of inst.text) {
-    if (inDestination(path) && body.includes(needle)) return true;
+    if (inDestination(path, inst) && body.includes(needle)) return true;
   }
   return false;
 }
@@ -324,7 +348,7 @@ describe("CLI 를 함께 골라도 룰이 남는다 (파일을 공유하는 조�
         const inDestination = RULE_DESTINATION[cli];
         for (const [rule, needle] of RULE_CANARIES) {
           const found = [...inst.text].some(
-            ([p, body]) => inDestination(p) && body.includes(needle),
+            ([p, body]) => inDestination(p, inst) && body.includes(needle),
           );
           expect(found, `${label} 설치에서 ${cli} 가 ${rule} 을 못 받는다`).toBe(true);
         }
@@ -339,16 +363,33 @@ describe("각 CLI 의 배선이 실재하는 파일을 가리킨다", () => {
     if (!inst) throw new Error("opencode 설치 없음");
     const cfg = JSON.parse(inst.text.get("opencode.json") ?? "{}") as { instructions?: string[] };
     const globs = cfg.instructions ?? [];
-    // #300 은 "글롭이 있는데 0건을 매치한다"였다. 룰은 이제 AGENTS.md 가 나르므로 글롭에 룰
-    // 항목이 있어서는 안 되고(있으면 중복 상주), 남은 항목은 전부 실재하거나 프로젝트가
-    // 나중에 만들 문서(`docs/…`)여야 한다. 하네스 소유 경로를 가리키면서 비어 있으면 거짓이다.
+    // #300 은 "글롭이 있는데 0건을 매치한다"였다. OpenCode 단독 설치는 `.agents/rules/` 가 없어 룰을 AGENTS.md 가 나른다 —
+    // 글롭에 룰 항목이 있어서는 안 되고(있으면 빈 매치), 남은 항목은 전부 실재하거나 프로젝트가 나중에 만들 문서(`docs/…`)여야
+    // 한다. 하네스 소유 경로를 가리키면서 비어 있으면 거짓이다.
     expect(
       globs.some((g) => g.includes("rules/")),
-      "룰 글롭이 남아 있다 — AGENTS.md 와 중복된다",
+      "룰 글롭이 남아 있다 — OpenCode 단독에는 그 폴더가 없다",
     ).toBe(false);
     for (const g of globs) {
       expect(g.startsWith(".claude/"), `존재하지 않는 하네스 경로를 가리킨다: ${g}`).toBe(false);
       expect(g.startsWith(".opencode/"), `존재하지 않는 하네스 경로를 가리킨다: ${g}`).toBe(false);
+    }
+  });
+
+  // #944 (ADR-116) — #300 의 "instructions 는 룰을 병합하지 않는다" 를 Codex 없는 조합에서만 뒤집는다: 그 글롭이 실재하는 룰 파일
+  //   전부를 가리키고, 그때 `AGENTS.md` 에는 룰 본문이 없다(두 번 읽지 않는다).
+  it("OpenCode+Antigravity: `instructions` 의 룰 글롭이 실재하는 `.agents/rules/*.md` 를 가리키고 AGENTS.md 에는 룰 본문이 없다", () => {
+    const inst = combos.get("opencode+antigravity");
+    if (!inst) throw new Error("조합 설치 없음");
+    const matched = [...instructionFiles(inst)].filter((f) => f.startsWith(".agents/rules/"));
+    const onDisk = inst.files.filter((f) => /^\.agents\/rules\/[^/]+\.md$/.test(f));
+    expect(onDisk.length, "모집단 자기검증 — 룰 파일").toBeGreaterThan(3);
+    expect(matched.sort()).toEqual(onDisk.sort());
+    const agents = inst.text.get("AGENTS.md") ?? "";
+    for (const [rule, needle] of RULE_CANARIES) {
+      expect(agents.includes(needle), `${rule} 본문이 AGENTS.md 에도 있다 — 두 번 읽는다`).toBe(
+        false,
+      );
     }
   });
 
@@ -425,7 +466,12 @@ describe("update 를 돌려도 룰이 남는다 / 없던 룰은 새로 받는다
     return snapshot(dir);
   };
 
-  for (const cli of [["claude", "codex"], ["codex", "opencode"], ["antigravity"]] as const) {
+  for (const cli of [
+    ["claude", "codex"],
+    ["codex", "opencode"],
+    ["opencode", "antigravity"],
+    ["antigravity"],
+  ] as const) {
     const label = cli.join("+");
     it(`${label}: update 후에도 각 CLI 가 자기 자리에서 룰을 읽는다`, () => {
       const fresh = install([...cli], `upd-${cli.join("-")}`);
@@ -434,7 +480,7 @@ describe("update 를 돌려도 룰이 남는다 / 없던 룰은 새로 받는다
         const inDestination = RULE_DESTINATION[target];
         for (const [rule, needle] of RULE_CANARIES) {
           const found = [...after.text].some(
-            ([p, body]) => inDestination(p) && body.includes(needle),
+            ([p, body]) => inDestination(p, after) && body.includes(needle),
           );
           expect(found, `${label} update 후 ${target} 가 ${rule} 을 잃었다`).toBe(true);
         }

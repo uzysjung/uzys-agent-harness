@@ -130,9 +130,10 @@ const TRACK_RULES: Record<Track, string[]> = {
   data: [],
   executive: [],
   tooling: ["cli-development"],
-  // #820 — htmx 룰(#935 부터 셋)은 `full` 에 넣지 않는다. OpenCode 가 섞인 설치는 룰을 AGENTS.md 본문에 인라인하는데, full 의 렌더가
-  //   Antigravity 상한(24,000 B)을 넘는다(22,322 → 24,455 B, `agents-md-size-budget`). htmx 를 쓰면 그 트랙을 함께 고른다 —
-  //   #935 실설치 측정: 그 조합도 Antigravity 와 Codex·OpenCode 중 하나를 함께 깔면 상한을 넘는다(full+ssr-htmx · full+ssr-htmx-hono).
+  // #820 — htmx 룰(#935 부터 셋)은 `full` 에 넣지 않는다. Codex 가 섞인 설치는 룰을 AGENTS.md 맨 끝에 인라인하는데(#944 — Codex 없이
+  //   OpenCode + Antigravity 면 위치 안내만), full 의 렌더가 Antigravity 상한(24,000 B)을 넘는다(22,322 → 24,455 B,
+  //   `agents-md-size-budget`). htmx 를 쓰면 그 트랙을 함께 고른다 — #935 실설치 측정: 그 조합(full+ssr-htmx · full+ssr-htmx-hono)도
+  //   Antigravity 와 Codex 를 함께 깔면 상한을 넘는다. #944 부터 그때 잘리는 것은 `.agents/rules/` 에도 있는 룰 사본의 뒷부분뿐이다.
   full: ["cli-development"],
   // v0.5.0 — executive-style baselines (no dev rules; common rules only).
   "project-management": [],

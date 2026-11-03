@@ -10,7 +10,7 @@
  *   - `## Project Context` · `## Project Rules` = **설치자 소유**. 본문을 디스크에서 이어받는다.
  *   - 그 안의 하네스 조각만 마커로 감싸 갈아 끼운다 — `skills`(ADR-085 상시 스킬 안내) ·
  *     `anchor`(`templates/CLAUDE.md` 본문). 룰·원칙이 바뀌면 여기가 바뀌어야 update 가 산다.
- *   - 나머지(제목 · `## Harness Rules` · `## Session Start` · `## Protected Files`)는 하네스
+ *   - 나머지(제목 · `## Session Start` · `## Protected Files` · 맨 끝 `## Harness Rules` — #944)는 하네스
  *     소유라 매번 최신 렌더가 자리를 차지한다.
  *
  * 절 경계는 **템플릿이 정의한 최상위 절 이름**으로만 판정한다. "다음 `## ` 까지"로 자르면
@@ -49,6 +49,11 @@ export const marker = (name: string): HarnessBlockMarker => ({
 export const ANCHOR_BLOCK = marker("anchor");
 /** `## Project Context` 안의 상시 스킬 안내(ADR-085)가 사는 자리. */
 export const SKILLS_BLOCK = marker("skills");
+/**
+ * #944 F1 — 맨 끝 `## Harness Rules` 안의 하네스 몫(안내 · 인라인 룰 · 위치 안내)이 사는 자리. 그 절이 파일 끝이라 설치자가 파일 끝에
+ * 붙인 `## ` 절이 그 절 안에 놓인다 — 블록 끝 뒤의 절은 제목이 룰 제목과 같아도 설치자 것이다(`headingOwner`).
+ */
+export const RULES_BLOCK = marker("rules");
 
 /**
  * #558 — 첫 접촉 `AGENTS.md`(하네스 기록에 없는 설치자 파일)의 하네스 블록 이름(설계 §6.2 `marker-md`). 루트
@@ -253,10 +258,11 @@ function markerInner(body: ReadonlyArray<string> | null, m: HarnessBlockMarker):
  *
  * - 설치자 절(`## Project Context` · `## Project Rules`)은 설치자 파일에 이미 있으니 뺀다 — 스캐폴드도 넣지 않는다.
  * - 그 절 안에 살던 하네스 조각(앵커 본문 · 상시 스킬 안내)은 마커를 벗겨 블록 안으로 옮긴다 — 블록 안에서 블록을
- *   열면 읽지 못한 파일이 된다(`marker-md`).
+ *   열면 읽지 못한 파일이 된다(`marker-md`). `## Harness Rules` 의 `rules` 마커도 같은 이유로 벗긴다(블록 안은 통째로 하네스 것이다).
  * - 앵커에는 앵커 자신의 제목(`## Working Principles`)을 단다 — 설치자의 `## Project Rules` 와 같은 이름의 절이 두 개
  *   생기면 에이전트가 어느 쪽이 설치자 규칙인지 가를 수 없다.
- * - 나머지 하네스 절(`## Harness Rules` · `## Session Start` · `## Protected Files`)은 렌더 그대로.
+ * - 나머지 하네스 절(`## Session Start` · `## Protected Files` · `## Harness Rules`)은 렌더 그대로 — 렌더 순서라 블록 안에서도
+ *   룰 절이 마지막이다(#944).
  */
 export function renderAgentsBlock(params: {
   rendered: string;
@@ -272,7 +278,9 @@ export function renderAgentsBlock(params: {
   for (const line of rendered.split("\n")) {
     const name = headingName(line, names);
     if (name !== null) keep = name !== CONTEXT_SECTION && name !== RULES_SECTION;
-    if (keep) harness.push(line);
+    if (keep && line.trim() !== RULES_BLOCK.start && line.trim() !== RULES_BLOCK.end) {
+      harness.push(line);
+    }
   }
   return [
     [`## ${params.anchorTitle}`, "", ...trimBlankEdges(anchor)],
@@ -357,7 +365,7 @@ export function mergeAgentsMdDetailed(params: MergeAgentsMdParams): MergeAgentsM
   // 설치자가 덧쓴 줄인지 판정할 근거가 없다 — 그때는 최신판으로 간다(편집분은 `owned-write` 의
   // `.backup-<stamp>` 에 남는다). 마커가 있는 판부터는 블록만 갈아 끼우므로 덧쓴 줄이 남는다.
   // 다만 그 본문 안에 설치자가 적은 `## ` 절은 라이브에 남긴다(ADR-097 결정 4 · #739) — 렌더의 같은 절에 없는 제목이
-  // 그것이다(집합 대조). 아래 `extraTopLevelSections` 가 다른 설치자 절과 같이 파일 끝에 되살린다.
+  // 그것이다(집합 대조). 아래 `extraTopLevelSections` 가 다른 설치자 절과 같이 `## Harness Rules` 앞에 되살린다.
   let replacedRulesHeadings: ReadonlySet<string> | null = null;
   if (rulesNow !== null && rulesNew !== null && blockRange(rulesNow, ANCHOR_BLOCK) !== null) {
     bodies.set(RULES_SECTION, refreshBlock(rulesNow, rulesNew, ANCHOR_BLOCK));
@@ -368,7 +376,7 @@ export function mergeAgentsMdDetailed(params: MergeAgentsMdParams): MergeAgentsM
   const merged = bodies.size === 0 ? rendered : assemble(rendered, names, bodies);
   // #643 — 스켈리톤이 모르는 상위 절(사용자가 파일 끝에 붙인 `## My Team Conventions` 등)은
   // 렌더에 자리가 없어 조용히 사라졌다. ADR-095 가 설치자 소유로 정한 것은 **아는 절들**이다 —
-  // 모르는 절을 지우는 권한까지는 없다. 원래 순서 그대로 파일 끝에 되살린다.
+  // 모르는 절을 지우는 권한까지는 없다. 원래 순서 그대로 `## Harness Rules` 앞(그 절이 없으면 파일 끝)에 되살린다(#944).
   // 어느 절이 설치자 것인지는 uninstall 의 걷기와 같은 판정(`headingOwner`)이 정한다(#739). 아는 절 본문
   // (`## Project Context`·`## Project Rules` 아래)의 `## ` 는 그 본문의 소유 규칙(마커 블록)이 맡으므로 다시 모으지 않는다 —
   // 모으면 update 마다 한 벌씩 늘거나, 옛 판 앵커·스캐폴드 제목이 파일 끝에 되살아난다.
@@ -396,13 +404,33 @@ export function mergeAgentsMdDetailed(params: MergeAgentsMdParams): MergeAgentsM
   );
   if (extras.length === 0) return { text: merged, droppedLegacySections, editedLegacySections };
   return {
-    text: `${merged.replace(/\n+$/, "\n")}${extras.map((e) => e.join("\n")).join("\n")}`.replace(
-      /\n+$/,
-      "\n",
-    ),
+    text: placeBeforeHarnessRules(merged, names, extras),
     droppedLegacySections,
     editedLegacySections,
   };
+}
+
+/**
+ * #944 (ADR-116) — 되살린 설치자 절은 `## Harness Rules` **바로 앞**에 둔다. 그 절은 파일 맨 끝이라 Antigravity 가 24,000 B 에서
+ * 자르거나 Codex 가 32 KiB 에서 멈출 때 빠지는 것은 룰 사본의 뒷부분이어야 한다 — 설치자 글이 아니라. 렌더에 그 절이 없으면
+ * (인라인 룰 없음) 전처럼 파일 끝.
+ */
+function placeBeforeHarnessRules(
+  merged: string,
+  names: ReadonlySet<string>,
+  extras: ReadonlyArray<ReadonlyArray<string>>,
+): string {
+  const lines = merged.split("\n");
+  const at = lines.findIndex((l) => headingName(l, names) === HARNESS_RULES_SECTION);
+  if (at === -1) {
+    return `${merged.replace(/\n+$/, "\n")}${extras.map((e) => e.join("\n")).join("\n")}`.replace(
+      /\n+$/,
+      "\n",
+    );
+  }
+  const head = trimTrailingBlanks(lines.slice(0, at));
+  const block = extras.flatMap((e) => [...e, ""]);
+  return [...head, "", ...block, ...lines.slice(at)].join("\n");
 }
 
 /** `headingOwner` 의 판정 — 하네스 것 · 설치자 것 · 아는 절 본문(그 절의 소유 규칙이 맡는다). */
@@ -414,10 +442,14 @@ export type HeadingOwner = "harness" | "installer" | "body";
  *
  * - 템플릿의 절 이름 → `harness`(절 경계)
  * - `## Project Context` · `## Project Rules` 안 → `body`(그 절 본문 — 소유는 마커 블록 · `installerLines` 가 정한다)
- * - `## Harness Rules` 안이고 하네스 룰 제목 집합에 든다 → `harness`(정체로 가른다 — 위치가 아니다, 리뷰 #735)
+ * - `## Harness Rules` 안이고 파일에 `rules` 블록이 있다(#944 F1) → 블록 안이면 `harness`, 블록 밖이면 `installer` — 제목을 보지
+ *   않는다. 그 절이 파일 끝이라 설치자가 끝에 붙인 `## Testing` 이 룰 제목과 같아도 설치자 것이다
+ * - `## Harness Rules` 안이고 블록이 없는 파일(#944 이전 판 — 그 절이 파일 중간이다)이고 하네스 룰 제목 집합에 든다 → `harness`
+ *   (정체로 가른다 — 위치가 아니다, 리뷰 #735)
  * - 그 밖 → `installer`
  *
- * @param bare 줄 끝 `\r` 을 뗀 줄. `region` 은 호출부가 줄을 훑으며 넘기는 직전 절 이름(아직 없으면 `null`).
+ * @param bare 줄 끝 `\r` 을 뗀 줄. `region` 은 호출부가 줄을 훑으며 넘기는 직전 절 이름(아직 없으면 `null`). `rulesBlock` 은 그
+ *   줄이 `rules` 블록 안인가(`inside`) · 블록이 있는 파일의 블록 밖인가(`outside`) · 블록이 없는 파일인가(`none`, 생략 시).
  */
 export function headingOwner(
   bare: string,
@@ -425,15 +457,26 @@ export function headingOwner(
     region: string | null;
     names: ReadonlySet<string>;
     harnessHeadings: ReadonlySet<string>;
+    rulesBlock?: RulesBlockPosition;
   },
 ): HeadingOwner {
   const name = /^## (.+?)\s*$/.exec(bare)?.[1];
   if (name !== undefined && ctx.names.has(name)) return "harness";
   if (ctx.region === CONTEXT_SECTION || ctx.region === RULES_SECTION) return "body";
-  if (ctx.region === HARNESS_RULES_SECTION && ctx.harnessHeadings.has(bare.trim())) {
-    return "harness";
-  }
-  return "installer";
+  if (ctx.region !== HARNESS_RULES_SECTION) return "installer";
+  const at = ctx.rulesBlock ?? "none";
+  if (at !== "none") return at === "inside" ? "harness" : "installer";
+  return ctx.harnessHeadings.has(bare.trim()) ? "harness" : "installer";
+}
+
+/** `headingOwner` 에 넘기는 줄의 자리 — `rules` 블록 안 · 블록이 있는 파일의 블록 밖 · 블록이 없는 파일. */
+export type RulesBlockPosition = "inside" | "outside" | "none";
+
+/** 줄 번호마다 `rules` 블록 기준 자리를 내는 함수 — 병합과 걷기가 같은 판정으로 훑는다. */
+function rulesBlockPosition(lines: ReadonlyArray<string>): (i: number) => RulesBlockPosition {
+  const at = blockRange(lines, RULES_BLOCK);
+  if (at === null) return () => "none";
+  return (i) => (i > at[0] && i < at[1] ? "inside" : "outside");
 }
 
 /** 절 본문 줄들 중 `## ` 제목 줄(끝 공백을 뗀 것). */
@@ -447,7 +490,7 @@ function renderedRuleHeadings(rendered: string, names: ReadonlySet<string>): Set
 }
 
 /**
- * 설치자가 하네스 절 자리에 적은 `## ` 절을 [헤딩 포함 줄 배열] 단위로 원래 순서대로 — 병합이 파일 끝에 되살린다.
+ * 설치자가 하네스 절 자리에 적은 `## ` 절을 [헤딩 포함 줄 배열] 단위로 원래 순서대로 — 병합이 `## Harness Rules` 앞에 되살린다.
  * `replacedRulesHeadings` 가 있으면 `## Project Rules` 본문을 통째로 갈아 끼우는 중이다(마커 없는 옛 판) — 그 본문의
  * `## ` 중 이 집합(렌더의 같은 절 제목)에 없는 것도 설치자 절로 모은다. 단 옛 판이 바이트 그대로 쓴 절(앵커 절 · 옛 템플릿
  * 꼬리 절 — `isLegacyHarnessSection`)은 **어느 후보 자리에 있든** 하네스가 쓰고 은퇴시킨 것이다 — 되살리지 않고 `legacy` 로
@@ -469,13 +512,20 @@ function extraTopLevelSections(
   const out: string[][] = [];
   let current: string[] | null = null;
   let region: string | null = null;
-  for (const line of existing.split("\n")) {
+  const lines = existing.split("\n");
+  const rulesBlock = rulesBlockPosition(lines);
+  for (const [i, line] of lines.entries()) {
     const bare = line.replace(/\r$/, "");
     const name = /^## (.+?)\s*$/.exec(bare)?.[1];
     if (name !== undefined) {
       if (current !== null) out.push(current);
       if (names.has(name)) region = name;
-      const owner = headingOwner(bare, { region, names, harnessHeadings });
+      const owner = headingOwner(bare, {
+        region,
+        names,
+        harnessHeadings,
+        rulesBlock: rulesBlock(i),
+      });
       const replacedBody =
         owner === "body" &&
         region === RULES_SECTION &&
@@ -544,12 +594,13 @@ export interface StripAgentsMdParams {
 }
 
 /**
- * #736 — 하네스 절 자리(`## Harness Rules` · `## Session Start` · `## Protected Files` · 파일 끝)에 설치자가 적은 `## ` 절을
+ * #736 — 하네스 절 자리(`## Session Start` · `## Protected Files` · 맨 끝 `## Harness Rules` 안과 뒤)에 설치자가 적은 `## ` 절을
  * [헤딩 포함 줄 배열] 단위로 원래 순서대로. update 가 `extraTopLevelSections` 로 살려 둔 절이 여기 든다 — 걷기가 이 절을
  * 모르면 uninstall 이 그 글을 지운다(파일째이거나 그 절만).
  *
- * 하네스 것 = 템플릿의 절 이름 · `## Harness Rules` 안의 하네스 룰 제목. 그 밖의 `## ` 는 설치자 절이다(정체로 가른다 —
- * 위치가 아니다). `## Project Context` · `## Project Rules` 본문은 `installerLines` 가 맡으므로 여기서 세지 않는다.
+ * 하네스 것 = 템플릿의 절 이름 · `## Harness Rules` 의 `rules` 블록 안(블록이 없는 옛 판 파일이면 그 절 안의 하네스 룰 제목).
+ * 그 밖의 `## ` 는 설치자 절이다 — 판정은 병합과 같은 `headingOwner` 다. `## Project Context` · `## Project Rules` 본문은
+ * `installerLines` 가 맡으므로 여기서 세지 않는다.
  *
  * #774 — 병합(`extraTopLevelSections`)과 같은 지문으로 옛 판이 바이트 그대로 쓴 절은 걷는다(`legacy` 로 센다 — 호출부가 1회
  * 백업). `legacyFile` = 마커 이전 판의 파일이다: 하네스 **이름 절**(템플릿 제목 절 — `## Project Rules` 머리말 · `## Harness Rules`
@@ -566,13 +617,20 @@ function installerSectionsInHarnessArea(
   const out: Array<{ lines: string[]; named: boolean }> = [];
   let current: { lines: string[]; named: boolean } | null = null;
   let region: string | null = null;
-  for (const line of existing.split("\n")) {
+  const lines = existing.split("\n");
+  const rulesBlock = rulesBlockPosition(lines);
+  for (const [i, line] of lines.entries()) {
     const bare = line.replace(/\r$/, "");
     const name = /^## (.+?)\s*$/.exec(bare)?.[1];
     if (name !== undefined) {
       if (current !== null) out.push(current);
       if (names.has(name)) region = name;
-      const owner = headingOwner(bare, { region, names, harnessHeadings: harnessRuleHeadings });
+      const owner = headingOwner(bare, {
+        region,
+        names,
+        harnessHeadings: harnessRuleHeadings,
+        rulesBlock: rulesBlock(i),
+      });
       if (!legacyFile) current = owner === "installer" ? { lines: [bare], named: false } : null;
       else if (region === CONTEXT_SECTION) current = null;
       else current = { lines: [bare], named: owner === "harness" };
@@ -626,7 +684,7 @@ export interface AgentsMdStripResult {
  *
  * 남기는 것 = 제목 줄 + `## Project Context` · `## Project Rules` 의 설치자 줄(마커 블록은 뺀다) + 하네스 절 자리에
  * 설치자가 적은 `## ` 절(#736 — `installerSectionsInHarnessArea`).
- * 걷어내는 것 = 하네스 소유 절 전부(`## Harness Rules` · `## Session Start` · `## Protected Files`)와
+ * 걷어내는 것 = 하네스 소유 절 전부(`## Session Start` · `## Protected Files` · `## Harness Rules`)와
  * 두 마커 블록. 절 경계는 렌더 때와 같이 템플릿의 최상위 절 이름으로 판정한다(ADR-095 D3).
  *
  * @returns 남길 내용. 설치자가 아무것도 안 채웠으면(Project Context 가 스캐폴드 그대로이고
