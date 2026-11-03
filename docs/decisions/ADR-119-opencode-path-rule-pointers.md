@@ -2,7 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-11-03
-- PR: (머지 직전에 채운다)
+- PR: #961
 - Issue: #960
 - Amends: ADR-117 · ADR-118 — 조건 ②("OpenCode ∉ 집합")를 걷는다. 조건 ① 은 "Codex 또는 OpenCode ∈ 집합"이 된다
 - 근거 = `docs/research/codex-rule-pointer-2026-11.md` §5차
