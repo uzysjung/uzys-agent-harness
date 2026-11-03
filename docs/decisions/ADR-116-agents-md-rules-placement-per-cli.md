@@ -1,8 +1,8 @@
 # ADR-116: `AGENTS.md` 의 룰 사본은 맨 끝에 두고, Codex 가 없으면 OpenCode 는 `instructions` 로 `.agents/rules/` 를 읽는다
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-11-03
-- PR: (머지 때 채운다)
+- PR: #946
 - Issue: #944
 - Amends: ADR-103 — 결정 1 의 인라인 조건 · 결정 2 의 "다음 update 와 같은 바이트" · Consequences 2항(OpenCode+Antigravity 의 이중
   읽기) · Consequences 3항(넘으면 `## Protected Files` 부터 잘린다)
