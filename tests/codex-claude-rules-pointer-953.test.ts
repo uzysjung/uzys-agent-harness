@@ -39,6 +39,8 @@ const h2 = (r: PortedRule): string => r.body.replace(/^#\s+/, "## ");
 const pathRulesOf = (tracks: ReadonlyArray<Track>): PortedRule[] =>
   portRules(ROOT, resolveRules({ tracks: [...tracks] })).filter((r) => r.paths.length > 0);
 
+const isRoot = typeof process.getuid === "function" && process.getuid() === 0;
+
 describe("§2 — 실행마다 Codex 가 경로 룰을 받는 수 (Claude Code + Codex)", () => {
   let projectDir: string;
   let outside: string;
@@ -207,24 +209,28 @@ describe("§2 — 실행마다 Codex 가 경로 룰을 받는 수 (Claude Code +
     everyPathRuleReachesCodex(["full"], "update");
   });
 
-  it("8행 — `AGENTS.md` 를 쓸 수 없으면 uninstall --cli claude 는 아무것도 지우지 않고 exit 1(#676 과 같은 문구) · 포인터 대상 그대로", () => {
-    install(["claude", "codex"]);
-    const files = claudeRuleFiles();
-    const agentsPath = join(projectDir, "AGENTS.md");
-    chmodSync(agentsPath, 0o444);
-    expect(
-      () => accessSync(agentsPath, constants.W_OK),
-      "픽스처 자기검증 — 이 실행 계정에서 쓰기 불가",
-    ).toThrow();
-    const r = uninstall("claude");
-    expect(r.code).toBe(1);
-    expect(r.err).toContain("ERROR: uninstall cannot write here — nothing was removed:");
-    expect(r.err).toContain("· AGENTS.md");
-    expect(r.err).toContain("Fix the permissions, then run the same command again.");
-    expect(claudeRuleFiles()).toEqual(files);
-    expect(pointerFolder()).toBe(".claude/rules");
-    everyPathRuleReachesCodex(["full"], "막힌 uninstall");
-  });
+  // root 는 권한 비트를 무시한다 — 다른 chmod 테스트와 같이 건너뛴다(tests/uninstall-recorded-removal.test.ts)
+  it.skipIf(isRoot)(
+    "8행 — `AGENTS.md` 를 쓸 수 없으면 uninstall --cli claude 는 아무것도 지우지 않고 exit 1(#676 과 같은 문구) · 포인터 대상 그대로",
+    () => {
+      install(["claude", "codex"]);
+      const files = claudeRuleFiles();
+      const agentsPath = join(projectDir, "AGENTS.md");
+      chmodSync(agentsPath, 0o444);
+      expect(
+        () => accessSync(agentsPath, constants.W_OK),
+        "픽스처 자기검증 — 이 실행 계정에서 쓰기 불가",
+      ).toThrow();
+      const r = uninstall("claude");
+      expect(r.code).toBe(1);
+      expect(r.err).toContain("ERROR: uninstall cannot write here — nothing was removed:");
+      expect(r.err).toContain("· AGENTS.md");
+      expect(r.err).toContain("Fix the permissions, then run the same command again.");
+      expect(claudeRuleFiles()).toEqual(files);
+      expect(pointerFolder()).toBe(".claude/rules");
+      everyPathRuleReachesCodex(["full"], "막힌 uninstall");
+    },
+  );
 
   it("9행 — update --only external(claude+codex 포인터) → 인라인(이번에 `.claude/rules/` 를 안 썼다) → 전체 update 가 포인터", () => {
     install(["claude", "codex"]);

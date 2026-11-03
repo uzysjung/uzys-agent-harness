@@ -17,7 +17,7 @@ ADR-117 의 ③(Antigravity 가 이번 룰 전부를 `.agents/rules/` 에 썼다
 `uninstall --cli` 재렌더의 `false` 는 그대로.
 
 - ③a Antigravity 가 이번 룰 전부를 `.agents/rules/` 에 썼다 → 포인터 대상 `.agents/rules/` (v26.182.0 과 같은 바이트)
-- ③b ③a 가 거짓이고, 이번 실행이 Claude Code 로 이번 룰 전부를 `.claude/rules/` 에 썼다(링크 · 남의 슬롯 · 설치자 편집이라 건너뛴 파일이 없다)
+- ③b ③a 가 거짓이고, 이번 실행이 Claude Code 로 이번 룰 전부를 `.claude/rules/` 에 썼다(프로젝트 밖 링크 · 남의 슬롯이라 건너뛴 파일이 없다 — 설치자가 고친 파일은 백업하고 하네스 판을 써서 원장에 오른다)
   → 포인터 대상 `.claude/rules/`
 - 둘 다 거짓 → 인라인
 
@@ -80,7 +80,8 @@ ADR-117 의 ③(Antigravity 가 이번 룰 전부를 `.agents/rules/` 에 썼다
 | `uninstall --cli claude` · `AGENTS.md` 쓰기 불가 | 아무것도 안 지우고 멈춤(D3 사전 검사) | 그대로(포인터 대상 남음) |
 | `update --only external` (claude+codex 포인터) | 인라인(③b 거짓 — 다음 전체 update 가 포인터) | 인라인 |
 | claude+codex 에 `install --cli opencode` | 인라인(② 거짓) | 인라인 |
-| Claude Code 룰 파일 하나가 링크 · 설치자 편집이라 건너뜀 | 인라인(③b 거짓) | 인라인 |
+| Claude Code 룰 파일 하나가 프로젝트 밖 링크라 건너뜀 | 인라인(③b 거짓) | 인라인 |
+| 설치자가 고친 Claude Code 룰 파일 | 포인터(백업 + 하네스 판 — 원장에 오른다) | 파일 |
 
 ## 3. 검증
 

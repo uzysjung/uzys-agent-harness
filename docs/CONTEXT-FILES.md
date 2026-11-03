@@ -97,7 +97,7 @@ Codex · OpenCode · Antigravity 는 **같은 `AGENTS.md` 한 파일을 씁니�
 쓰는 룰(`.tsx` · `.jsx` 화면 · `.sh` 스크립트 등)은 본문 대신 "아래 파일을 만들거나 고치기 전에 그 룰을 읽고 따른다" 와 Antigravity 가
 쓴 `.agents/rules/<룰>.md` 목록으로 들어갑니다 — Codex 는 그 파일을 고칠 때만 그 룰을 읽습니다(같은 조건 — 하네스가 만든
 `AGENTS.md` 이고 그 실행이 그 파일을 썼을 때). Antigravity 가 없고 Claude Code 와 함께면 같은 목록이 Claude Code 의 `.claude/rules/<룰>.md`
-를 가리킵니다 — `uninstall --cli claude` 는 그 파일을 지우기 전에 `AGENTS.md` 를 본문으로 다시 씁니다. 늘 적용되는 룰은 그대로 본문입니다. 여러분이 덧붙이는 절은 룰 절 **위에** 두세요 — 룰 절이 맨 끝이라
+를 가리킵니다 — `uninstall --cli claude` 는 `AGENTS.md` 를 쓸 수 있는지 먼저 확인하고(못 쓰면 아무것도 지우지 않습니다), 그 파일을 지운 뒤 `AGENTS.md` 를 본문으로 다시 씁니다. 늘 적용되는 룰은 그대로 본문입니다. 여러분이 덧붙이는 절은 룰 절 **위에** 두세요 — 룰 절이 맨 끝이라
 Antigravity 가 파일 하나에서 24,000 바이트를 넘는 부분을 잘라도 잘리는 것은 룰 사본이고, 룰 뒤에 적은 절은 다음 `update`
 가 그 자리로 옮깁니다.
 v26.164.0 까지 Antigravity 가 읽던 `.agents/rules/uzys-harness.md` 는 은퇴했습니다 — 첫 `update` 가 그 파일에

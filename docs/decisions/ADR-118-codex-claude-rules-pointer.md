@@ -61,6 +61,12 @@
 - (감수 ⓓ) `uninstall --cli claude` · `--track` 재렌더는 늘 인라인이라, 포인터 설치본(claude + codex의 `.claude/rules/` · claude + codex + ag 의
   `.agents/rules/`)은 그 한 번 인라인으로 내려오고 다음 update 가 포인터로 되돌린다(ADR-116 이 감수한 "재렌더 = 인라인 → 다음 update
   포인터" 와 같은 부류). 그래서 claude + codex 의 `uninstall --track` 은 룰이 그대로여도 `re-rendered AGENTS.md` 를 말할 수 있다.
+- (감수 ⓔ) 사전 검사는 `AGENTS.md` 하나만 본다. 순서는 검사 → 지우기 → 재렌더라, 지우기 도중 다른 이유(프로젝트 폴더 자체가 쓰기 불가 등)로
+  죽으면 룰 파일은 지워지고 `AGENTS.md` 는 포인터 그대로 남을 수 있다 — 권한을 고친 뒤 같은 명령을 다시 돌리면 인라인으로 돌아온다(독립 리뷰
+  MAJOR-1 재현). 재렌더를 지우기 앞으로 옮기면 이 경우가 사라지지만, 재렌더 입력(다음 기록)이 지우기 결과에서 나오므로 그 흐름을 함께 바꿔야
+  한다 — 그 상태를 만드는 설치자는 관측되지 않아 ADR-117 과 같은 자리에서 감수한다.
+- (감수 ⓕ) claude + codex 에서 Project Context 를 채운 설치자는 `uninstall --cli claude` 한 번에 `AGENTS.md` 백업 1개를 받는다(재렌더가 절 모델
+  파일을 다시 쓴다 — 잃는 바이트는 없다).
 - (감수) Codex 는 `.claude/rules/<룰>.md` 의 Claude Code frontmatter(`paths:`) 줄을 본문으로 함께 읽는다(ADR-117 의 `trigger: glob` 과 같다).
 - update 화면의 상주 비용 줄은 Claude Code 가 섞인 설치에서 Claude 세션(`.claude/rules/` · `CLAUDE.md`)을 잰다 — Codex 세션의 `AGENTS.md` 는
   그 줄에 없다(현행 표면 규칙). 포인터 줄의 폴더를 읽는 계산은 Codex 표면으로 잴 때 쓰인다.
