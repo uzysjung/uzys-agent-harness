@@ -30,7 +30,7 @@ import type { CliBase, Track } from "../src/types.js";
  * 걷었다 — 실 OpenCode 2.2.5 6/6 · 대조군 0/2, `docs/research/codex-rule-pointer-2026-11.md` §5차). ADR-116 의 위치 안내(Codex 없음 +
  * OpenCode + Antigravity)가 서는 실행은 그쪽이 우선이라 바이트가 그대로다.
  *
- * 판정 기준: **어떤 실행 뒤에도 Codex · OpenCode 가 경로 룰을 0번 받지 않는다.** `reach` 가 룰마다 센다 — `AGENTS.md` 인라인 본문 ·
+ * 판정 기준: **하네스가 남긴 상태에서 시작한 실행은 Codex · OpenCode 가 경로 룰을 0번 받게 두지 않는다**(예외 = ADR-119 감수 ⓔ ⓕ). `reach` 가 룰마다 센다 — `AGENTS.md` 인라인 본문 ·
  * 포인터가 가리키고 실재하며 본문을 담은 파일 · (OpenCode 만) `opencode.json` `instructions` 글롭이 가리키는 실재 파일.
  */
 

@@ -1,6 +1,6 @@
 # ADR-119: OpenCode 가 섞인 조합도 경로 룰은 `AGENTS.md` 에서 룰 파일을 가리킨다
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-11-03
 - PR: (머지 직전에 채운다)
 - Issue: #960
@@ -44,11 +44,15 @@
   - claude + opencode(Antigravity · Codex 없음) → `.claude/rules/`
   - ADR-116 집합에서 위치 안내가 그 실행에 서지 못하는 부분 실행(OpenCode 를 고르지 않은 `install --cli`) → 그 실행이 쓴 폴더.
     다음 update 에 위치 안내로 돌아간다.
-- 불변식: **어떤 실행 뒤에도 Codex · OpenCode 가 경로 룰을 0번 받지 않는다.** 집합 · 전이마다 `tests/opencode-rules-pointer-960.test.ts`
-  가 이를 문다. 셈은 인라인 본문, 포인터가 가리키는 실재 파일, OpenCode 의 `instructions` 글롭 셋이다.
+- 불변식: **하네스가 남긴 상태에서 시작한 실행은 Codex · OpenCode 가 경로 룰을 0번 받게 두지 않는다**(예외 둘은 아래 감수 ⓔ ⓕ).
+  `tests/opencode-rules-pointer-960.test.ts` 가 바뀌는 집합 넷과 대표 전이를 문다 — 집합 15종 × 두 단계 약 700가지는 독립 리뷰가 실설치로 쟀다. 셈은 인라인 본문, 포인터가 가리키는 실재 파일, OpenCode 의 `instructions` 글롭 셋이다.
 - 크기: 포인터 렌더는 codex + opencode + antigravity 최대 21,588 B 로 24,000 B 를 넘는 조합이 0/91 이다(인라인은 13/91).
   claude + codex + opencode 는 최대 24,940 → 21,573 B, claude + opencode 는 24,417 → 21,050 B 다(`tests/agents-md-size-budget.test.ts`).
 - (감수) 근거 두께는 위 Context 그대로다. 셸을 끈 환경 · 모델과 강도 하나 · 6/6 + 열린 1회다.
 - (감수) OpenCode 도 가리킨 파일의 frontmatter(`paths:` · `trigger: glob`)를 본문으로 함께 읽는다. ADR-117 · ADR-118 과 같다.
 - (감수) ADR-118 의 ⓐ(`update --only external`), ⓑ(`.claude/` 를 VCS 에서 뺀 클론), ⓓ(재렌더 = 인라인 → 다음 update 포인터)가
   OpenCode 가 섞인 집합에도 그대로 적용된다.
+- (감수 ⓔ) 설치자가 가리킨 룰 파일을 지운 뒤 그 폴더를 쓰지 않는 부분 update(`--only skills` · `.agents/rules/` 포인터면 `--only rules`)를
+  돌리면 그 룰은 다음 전체 update 까지 0번이다 — ADR-117 이 감수한 "설치자가 가리킨 파일을 지운 경우" 와 같다(claude + opencode 에서 새로 생긴다).
+- (감수 ⓕ) uninstall 이 룰 파일을 지우는 도중 다른 이유로 죽으면 포인터가 빈 자리를 가리킬 수 있다 — ADR-118 감수 ⓔ 와 같고, 권한을 고친 뒤 같은
+  명령을 다시 돌리면 인라인으로 돌아온다.
