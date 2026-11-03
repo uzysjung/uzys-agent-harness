@@ -38,7 +38,7 @@ export interface AgentsMdTransformParams {
   clis: ReadonlyArray<AgentsMdCli>;
   /** 상시 스킬 안내(ADR-085)의 원천 — 세 변환과 같은 인자(`agentsSkillSlot` 이 같은 답을 낸다). */
   selectedInternalSkills: ReadonlyArray<string>;
-  /** 인라인 룰(`## Harness Rules`) — codex · opencode 가 집합에 있을 때만 들어간다. */
+  /** 인라인 룰(`## Harness Rules`, 파일 맨 끝) — codex · opencode 가 집합에 있을 때만 들어간다(위치 안내면 없다, #944). */
   rules: ReadonlyArray<string>;
   /**
    * #944 (ADR-116) — 이번 실행이 OpenCode 의 룰 도달을 `opencode.json` `instructions` 로 보장했다(`runCliTransforms` 가 쓴 결과로

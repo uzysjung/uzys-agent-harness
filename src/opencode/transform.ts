@@ -73,7 +73,7 @@ export interface OpencodeTransformParams {
 export interface OpencodeTransformReport {
   opencodeJsonPath: string;
   /**
-   * #563 — `opencode.json` 에 하네스 몫(`mcp.<name>`)만 쓴 결과. optional = 손으로 만드는 테스트 stub 이 여럿이다 —
+   * #563 — `opencode.json` 에 하네스 몫(`mcp.<name>` · #944 조건부 룰 원소)만 쓴 결과. optional = 손으로 만드는 테스트 stub 이 여럿이다 —
    * 부재는 "알릴 것 없음".
    */
   opencodeJson?: SharedWriteResult;

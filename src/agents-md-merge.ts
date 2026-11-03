@@ -10,7 +10,7 @@
  *   - `## Project Context` · `## Project Rules` = **설치자 소유**. 본문을 디스크에서 이어받는다.
  *   - 그 안의 하네스 조각만 마커로 감싸 갈아 끼운다 — `skills`(ADR-085 상시 스킬 안내) ·
  *     `anchor`(`templates/CLAUDE.md` 본문). 룰·원칙이 바뀌면 여기가 바뀌어야 update 가 산다.
- *   - 나머지(제목 · `## Harness Rules` · `## Session Start` · `## Protected Files`)는 하네스
+ *   - 나머지(제목 · `## Session Start` · `## Protected Files` · 맨 끝 `## Harness Rules` — #944)는 하네스
  *     소유라 매번 최신 렌더가 자리를 차지한다.
  *
  * 절 경계는 **템플릿이 정의한 최상위 절 이름**으로만 판정한다. "다음 `## ` 까지"로 자르면
@@ -256,7 +256,8 @@ function markerInner(body: ReadonlyArray<string> | null, m: HarnessBlockMarker):
  *   열면 읽지 못한 파일이 된다(`marker-md`).
  * - 앵커에는 앵커 자신의 제목(`## Working Principles`)을 단다 — 설치자의 `## Project Rules` 와 같은 이름의 절이 두 개
  *   생기면 에이전트가 어느 쪽이 설치자 규칙인지 가를 수 없다.
- * - 나머지 하네스 절(`## Harness Rules` · `## Session Start` · `## Protected Files`)은 렌더 그대로.
+ * - 나머지 하네스 절(`## Session Start` · `## Protected Files` · `## Harness Rules`)은 렌더 그대로 — 렌더 순서라 블록 안에서도
+ *   룰 절이 마지막이다(#944).
  */
 export function renderAgentsBlock(params: {
   rendered: string;
@@ -564,7 +565,7 @@ export interface StripAgentsMdParams {
 }
 
 /**
- * #736 — 하네스 절 자리(`## Harness Rules` · `## Session Start` · `## Protected Files` · 파일 끝)에 설치자가 적은 `## ` 절을
+ * #736 — 하네스 절 자리(`## Session Start` · `## Protected Files` · 맨 끝 `## Harness Rules` 안과 뒤)에 설치자가 적은 `## ` 절을
  * [헤딩 포함 줄 배열] 단위로 원래 순서대로. update 가 `extraTopLevelSections` 로 살려 둔 절이 여기 든다 — 걷기가 이 절을
  * 모르면 uninstall 이 그 글을 지운다(파일째이거나 그 절만).
  *
@@ -646,7 +647,7 @@ export interface AgentsMdStripResult {
  *
  * 남기는 것 = 제목 줄 + `## Project Context` · `## Project Rules` 의 설치자 줄(마커 블록은 뺀다) + 하네스 절 자리에
  * 설치자가 적은 `## ` 절(#736 — `installerSectionsInHarnessArea`).
- * 걷어내는 것 = 하네스 소유 절 전부(`## Harness Rules` · `## Session Start` · `## Protected Files`)와
+ * 걷어내는 것 = 하네스 소유 절 전부(`## Session Start` · `## Protected Files` · `## Harness Rules`)와
  * 두 마커 블록. 절 경계는 렌더 때와 같이 템플릿의 최상위 절 이름으로 판정한다(ADR-095 D3).
  *
  * @returns 남길 내용. 설치자가 아무것도 안 채웠으면(Project Context 가 스캐폴드 그대로이고

@@ -1,7 +1,8 @@
 /**
- * opencode.json transform — fill template + `mcp.<name>` from the harness MCP servers.
+ * opencode.json transform — fill template + `mcp.<name>` from the harness MCP servers (+ #944: one `instructions` entry
+ * `.agents/rules/*.md` when Antigravity is selected and Codex does not read `AGENTS.md`).
  *
- * Output: opencode.json (top-level `mcp.<name>` map).
+ * Output: opencode.json (top-level `mcp.<name>` map · `instructions[]` entry).
  *
  * #568 — 서버마다 **OpenCode 형식**으로 옮긴다: `{ type: "local", command: [cmd, ...args],
  * environment? }`. Claude `.mcp.json` 형식(`{ type: "stdio", command, args }`)을 그대로 넣으면
@@ -73,9 +74,9 @@ function toOpencode(cfg: McpJson["mcpServers"][string]): OpencodeMcp {
 }
 
 /**
- * #563 (ADR-097 §6.2 `json-keys`) — `opencode.json` 의 하네스 몫 = 서버마다 키 `mcp.<name>`. 설치자 파일에는 이것만
- * 더한다 — 템플릿의 나머지 키(`$schema` · `agent` · `permission` …)는 하네스가 파일을 **새로 만들 때만** 바탕(seed)으로
- * 깔리고, 그 순간부터 설치자 것이다.
+ * #563 (ADR-097 §6.2 `json-keys`) — `opencode.json` 의 서버 몫 = 서버마다 키 `mcp.<name>`. 하네스 몫 전체는 이것 + 조건부 룰 원소
+ * (`renderOpencodePortion`, #944) — 설치자 파일에는 그것만 더한다. 템플릿의 나머지 키(`$schema` · `agent` · `permission` …)는
+ * 하네스가 파일을 **새로 만들 때만** 바탕(seed)으로 깔리고, 그 순간부터 설치자 것이다.
  */
 export function renderOpencodeMcp(mcp: McpJson): Map<string, OpencodeMcp> {
   return new Map(

@@ -69,6 +69,7 @@ import {
 import { HARNESS_ANCHOR_FILE, HARNESS_IMPORT_LINE } from "../project-claude-merge.js";
 import { residentCostFor, residentEntries } from "../resident-entries.js";
 import type { SharedWriteResult } from "../shared-write.js";
+import { shellArg } from "../shell-arg.js";
 import type { CliBase, CliTargets, InstallSpec, OptionFlags } from "../types.js";
 import type { CatalogRemoved, UpdateModeReport } from "../update-mode.js";
 
@@ -469,7 +470,7 @@ function residentEntriesOnDisk(
  *  - claude: 앵커 · 루트 `CLAUDE.md` · 남아 있는 구 앵커(`.claude/CLAUDE.md`, ADR-060 이행 전 위치 —
  *    지우지 않으므로 계속 읽힌다). 루트 `CLAUDE.md` 는 설치자 본문까지 잰다: 템플릿 스캐폴드로 재면
  *    키운 본문이 화면에서 사라진다.
- *  - Codex · OpenCode · Antigravity: `AGENTS.md` 통째 — 하네스 절 · (Codex · OpenCode 면) 인라인 룰 · 설치자 절이
+ *  - Codex · OpenCode · Antigravity: `AGENTS.md` 통째 — 하네스 절 · (Codex · OpenCode 면, 위치 안내가 아니면) 인라인 룰 · 설치자 절이
  *    한 파일에 섞여 있다(ADR-103 — Antigravity 의 옛 앵커 파일은 은퇴했다).
  */
 function contextFilesOnDisk(spec: InstallSpec): string[] {
@@ -482,7 +483,7 @@ function contextFilesOnDisk(spec: InstallSpec): string[] {
 }
 
 /**
- * #615 남은 틈 ① — Codex · OpenCode 의 룰은 `AGENTS.md` 안에 있다. 그 파일을 통째로 쟀으니 룰 토큰을
+ * #615 남은 틈 ① — Codex · OpenCode 의 룰은 `AGENTS.md` 안에 있다(#944 — 위치 안내를 쓴 파일은 아니다, `rulesInline`). 그 파일을 통째로 쟀으니 룰 토큰을
  * 따로 더하면 두 번 센다 — 룰 토큰을 빼고 "파일 안에 있다"고 말한다. 룰 **수**는 계획 엔트리다: 이번
  * update 가 외부 변환을 돌렸으면(`--only` 로 빼지 않았으면) 방금 그 수대로 다시 썼고, 안 돌렸으면 옛 판이
  * 남아 있을 수 있어 "planned" 라고 붙인다.
@@ -605,7 +606,7 @@ export function renderCliArtifacts(
     }
   }
   if (report.opencode) {
-    // #563 — 하네스 몫은 MCP 키(`mcp.<name>`)뿐이다. 나머지 키는 파일을 새로 만들 때만 깔린다.
+    // #563 — 하네스 몫은 MCP 키(`mcp.<name>`)와 #944 의 룰 원소(`instructions[=…]`, 조건부)뿐이다. 나머지 키는 파일을 새로 만들 때만 깔린다.
     const opencodeJson = report.opencode.opencodeJson;
     const opencodeRow = opencodeJson
       ? sharedRow(opencodeJson, opencodeMcpPart(opencodeJson))
@@ -1134,7 +1135,7 @@ function renderPhase1Rows(
         assetRow(
           "skip",
           "to keep it out",
-          `deleting is undone by the next update — re-run \`agent-harness install\` with your usual flags plus ${withoutArgs.map((a) => `--without ${a}`).join(" ")}, then delete it again (${KEPT_OUT_SCOPE})`,
+          `deleting is undone by the next update — re-run \`agent-harness install\` with your usual flags plus ${withoutArgs.map((a) => `--without ${shellArg(a)}`).join(" ")}, then delete it again (${KEPT_OUT_SCOPE})`,
         ),
       );
     }
@@ -1861,7 +1862,7 @@ export function excludedKeyParts(f: {
 }): string[] {
   const parts: string[] = [];
   if (f.removedOut.length > 0) {
-    const asked = f.removedOut.map((id) => `--without ${id}`).join(" ");
+    const asked = f.removedOut.map((id) => `--without ${shellArg(id)}`).join(" ");
     parts.push(`removed the harness part: ${f.removedOut.join(", ")} (you asked: ${asked})`);
   }
   if (f.removedEdited.length > 0) {
@@ -1910,11 +1911,11 @@ export function catalogRemovedRows(items: ReadonlyArray<CatalogRemoved>): string
           : "다른 CLI";
         parts.push(`${e.replacedBy} 는 ${only} 전용이라 이 설치본의 CLI 에는 깔리지 않는다`);
       } else {
-        parts.push(`새 것은 agent-harness install --with ${e.replacedBy}`);
+        parts.push(`새 것은 agent-harness install --with ${shellArg(e.replacedBy)}`);
       }
-      parts.push(`옛 것을 치우려면 agent-harness uninstall --only ${e.id}`);
+      parts.push(`옛 것을 치우려면 agent-harness uninstall --only ${shellArg(e.id)}`);
     } else {
-      parts.push(`치우려면 agent-harness uninstall --only ${e.id}`);
+      parts.push(`치우려면 agent-harness uninstall --only ${shellArg(e.id)}`);
     }
     return assetRow("skip", e.id, parts.join(" · "));
   });
@@ -1926,8 +1927,8 @@ export function excludedStillThereRows(items: ReadonlyArray<ExcludedStillThere>)
   // `--without` 없이 install 하는 것이다(install 의 선택이 기록을 대체한다)
   return items.map((e) =>
     e.catalog
-      ? `  ${c.yellow(symbol.skip)} ${e.id} — excluded, so the harness no longer updates it (still installed). To manage it again: run install (without --without ${e.id}; add --with ${e.id} if it is opt-in) · remove it: agent-harness uninstall --only ${e.id}`
-      : `  ${c.yellow(symbol.skip)} ${e.id} — excluded (still on disk — an earlier install put it there; the harness does not delete it. Remove the file yourself, or run uninstall) · to manage it again: run install without --without ${e.id}`,
+      ? `  ${c.yellow(symbol.skip)} ${e.id} — excluded, so the harness no longer updates it (still installed). To manage it again: run install (without --without ${shellArg(e.id)}; add --with ${shellArg(e.id)} if it is opt-in) · remove it: agent-harness uninstall --only ${shellArg(e.id)}`
+      : `  ${c.yellow(symbol.skip)} ${e.id} — excluded (still on disk — an earlier install put it there; the harness does not delete it. Remove the file yourself, or run uninstall) · to manage it again: run install without --without ${shellArg(e.id)}`,
   );
 }
 
@@ -1949,10 +1950,10 @@ export function releasedRows(
 ): string[] {
   return items.map((r) =>
     notInstalled.has(r.id)
-      ? `  ${c.yellow(symbol.skip)} ${r.id} — selected again, but ${notInstalled.get(r.id)}: this install did not pass --without ${r.id}`
+      ? `  ${c.yellow(symbol.skip)} ${r.id} — selected again, but ${notInstalled.get(r.id)}: this install did not pass --without ${shellArg(r.id)}`
       : r.again
-        ? `  ${c.green("↺")} ${r.id} — dropped earlier, installed again: this install did not pass --without ${r.id}`
-        : `  ${c.green("↺")} ${r.id} — no longer excluded: ${r.tail} (this install did not pass --without ${r.id})`,
+        ? `  ${c.green("↺")} ${r.id} — dropped earlier, installed again: this install did not pass --without ${shellArg(r.id)}`
+        : `  ${c.green("↺")} ${r.id} — no longer excluded: ${r.tail} (this install did not pass --without ${shellArg(r.id)})`,
   );
 }
 
@@ -1976,7 +1977,7 @@ export const KEPT_OUT_SCOPE =
  * 명령(`--without <키 id>`)과 그 효과 범위를 같은 줄 끝에 흐리게 붙인다 — update 가 지키고, 다음 install 이 대체한다.
  */
 export function restoredKeysPart(ids: ReadonlyArray<string>): string {
-  const drop = ids.map((id) => `--without ${id}`).join(" ");
+  const drop = ids.map((id) => `--without ${shellArg(id)}`).join(" ");
   return `was missing — restored: ${ids.join(", ")} ${c.dim(`(drop it: install … ${drop} — ${KEPT_OUT_SCOPE})`)}`;
 }
 
@@ -2002,7 +2003,7 @@ export function restoredFilePart(f: {
   const how = f.how === undefined ? "" : ` — ${f.how}`;
   const drop =
     f.ids !== undefined && f.ids.length > 0
-      ? ` ${c.dim(`(drop it: install … ${f.ids.map((id) => `--without ${id}`).join(" ")} — ${KEPT_OUT_SCOPE})`)}`
+      ? ` ${c.dim(`(drop it: install … ${f.ids.map((id) => `--without ${shellArg(id)}`).join(" ")} — ${KEPT_OUT_SCOPE})`)}`
       : f.clis.length === 0
         ? ""
         : ` ${c.dim(`(drop this CLI for good: ${f.clis.map((cli) => `agent-harness uninstall --cli ${cli}`).join(" and ")})`)}`;

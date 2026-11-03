@@ -52,7 +52,7 @@ export interface AgentsMdParams {
   projectName: string;
   /** Project-context fill scaffold — the same body shipped to the Claude Code CLAUDE.md. */
   projectContext: string;
-  /** 배포 룰 본문(이어 붙인 한 덩어리) — Codex · OpenCode 가 집합에 있을 때만 들어간다. */
+  /** 배포 룰 본문(이어 붙인 한 덩어리) — Codex · OpenCode 가 집합에 있을 때만 들어간다(위치 안내를 쓰면 들어가지 않는다, #944). */
   harnessRules: string;
   /** 이 파일을 읽는 깔린 CLI 집합. 비면 호출부 버그다(claude 단독은 이 파일을 쓰지 않는다). */
   clis: ReadonlyArray<AgentsMdCli>;

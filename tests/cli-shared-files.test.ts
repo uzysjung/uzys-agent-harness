@@ -3,7 +3,8 @@
  *
  * 무는 것은 **설치자 디스크의 라이브 파일**이다 — 백업에 남는 것은 보존이 아니다(지금 도는 CLI 는 백업을 안 읽는다).
  *   - `.codex/config.toml` (`toml-region`): 설치자 키·표는 그대로, 하네스 몫은 구간 둘. 겹치면 설치자 값이 이긴다.
- *   - `opencode.json` (`json-keys`): 설치자 설정은 그대로, 하네스 MCP 키(`mcp.<name>`)만.
+ *   - `opencode.json` (`json-keys`): 설치자 설정은 그대로, 하네스 MCP 키(`mcp.<name>`)와 — Antigravity 와 함께 · Codex 없이 —
+ *     `instructions` 의 룰 원소 하나만(#944).
  *   - `AGENTS.md` (`marker-md` 첫 접촉): 설치자 본문은 바이트 그대로, 하네스 몫은 파일 끝 블록 하나.
  * install(첫 설치) · 재설치 · update 가 같은 변환을 타므로 셋 다 같은 결과여야 한다.
  */

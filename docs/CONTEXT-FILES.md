@@ -83,13 +83,18 @@ _(not filled yet — what this project is, who it is for, and why it exists)_
 | 도구 | 원칙을 읽는 자리 | 룰을 읽는 자리 |
 |---|---|---|
 | Claude Code | `CLAUDE-uzys-harness.md` (루트 `CLAUDE.md` 의 `@import` 로) | `.claude/rules/*.md` |
-| Codex | `AGENTS.md` | **같은 `AGENTS.md`** 의 `## Harness Rules` 절 |
-| OpenCode | `AGENTS.md` | **같은 `AGENTS.md`** 의 `## Harness Rules` 절 |
+| Codex | `AGENTS.md` | **같은 `AGENTS.md`** 맨 끝의 `## Harness Rules` 절 |
+| OpenCode | `AGENTS.md` | **같은 `AGENTS.md`** 맨 끝의 `## Harness Rules` 절. Codex 없이 Antigravity 와 함께 깔리면 `.agents/rules/*.md` — `opencode.json` 의 `instructions` 원소 하나로 읽습니다 |
 | Antigravity | `AGENTS.md` | `.agents/rules/*.md` (Antigravity 가 요구하는 trigger frontmatter 를 단 판) |
 
 Codex · OpenCode · Antigravity 는 **같은 `AGENTS.md` 한 파일을 씁니다.** 그 파일은 깔린 도구 집합으로
-만들어집니다 — 제목에 그 도구들의 이름이 붙고, Codex 의 `## Session Start` 와 룰 절(`## Harness Rules`)은
-그것이 필요한 도구가 깔려 있을 때만 들어갑니다(Antigravity 는 룰을 `.agents/rules/` 에서 읽습니다).
+만들어집니다 — 제목에 그 도구들의 이름이 붙고, Codex 의 `## Session Start` 와 룰 절(`## Harness Rules`, 파일 맨 끝)은
+그것이 필요한 도구가 깔려 있을 때만 들어갑니다(Antigravity 는 룰을 `.agents/rules/` 에서 읽습니다). Codex 가 섞이면 룰
+본문이 그 절에 들어가고, Codex 없이 OpenCode 와 Antigravity 가 함께 깔리면 그 절에는 룰이 어디 있는지 알리는 한 문단만
+들어갑니다 — 이때 OpenCode 는 하네스가 `opencode.json` 의 `instructions` 에 더한 원소 `.agents/rules/*.md` 로 Antigravity
+와 같은 파일을 읽어, 두 도구가 룰을 한 번씩만 읽습니다. 여러분이 덧붙이는 절은 룰 절 **위에** 두세요 — 룰 절이 맨 끝이라
+Antigravity 가 파일 하나에서 24,000 바이트를 넘는 부분을 잘라도 잘리는 것은 룰 사본이고, 룰 뒤에 적은 절은 다음 `update`
+가 그 자리로 옮깁니다.
 v26.164.0 까지 Antigravity 가 읽던 `.agents/rules/uzys-harness.md` 는 은퇴했습니다 — 첫 `update` 가 그 파일에
 채워 둔 글을 `AGENTS.md` 의 `## Project Context` 로 한 번 옮기고 파일을 치웁니다(ADR-103).
 
@@ -118,7 +123,7 @@ v26.164.0 까지 Antigravity 가 읽던 `.agents/rules/uzys-harness.md` 는 은�
 
 `AGENTS.md` 에도 `CLAUDE.md` 처럼 **사용자가 채우는 절**(`## Project Context` · `## Project Rules`)이
 있습니다. 거기 적은 내용은 `update` 와 재설치를 넘어 **그대로 남습니다.** 하네스가 다시 쓰는 것은 자기
-몫뿐입니다 — 제목 줄 · `## Harness Rules` · `## Session Start` · `## Protected Files`, 그리고 사용자
+몫뿐입니다 — 제목 줄 · `## Session Start` · `## Protected Files` · `## Harness Rules`(맨 끝), 그리고 사용자
 절 안에서는 `<!-- uzys-harness:… -->` 주석 쌍으로 감싼 조각(상시 스킬 안내 · 작업 원칙 본문)입니다.
 **그 주석 쌍 사이**에 적은 것은 다음 `update` 가 덮어쓰니 바깥에 적으세요. `uninstall` 도 같은 경계로
 움직입니다 — 하네스 몫만 걷어내고 여러분의 두 절은 파일에 남깁니다(두 절에 아무것도 안 적었으면 파일째

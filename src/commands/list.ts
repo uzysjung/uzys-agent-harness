@@ -21,6 +21,7 @@ import {
   installedClis,
 } from "../install-log.js";
 import { excludedIds } from "../recorded.js";
+import { shellArg } from "../shell-arg.js";
 import { detectInstallState, reportNotInstalled } from "../state.js";
 import { excludedBaselineOnDisk } from "../update-mode.js";
 
@@ -129,7 +130,7 @@ export function formatSelectionRows(log: InstallLog, projectDir: string): string
       rows.push(`      ${day}  migration (26.162–26.163 record): ${parts.join(" · ")}`);
       continue;
     }
-    if (ev.without?.length) parts.push(`--without ${ev.without.join(", ")}`);
+    if (ev.without?.length) parts.push(`--without ${ev.without.map(shellArg).join(", ")}`);
     if (ev.with?.length) parts.push(`re-added ${ev.with.join(", ")}`);
     const tags = [ev.via === "wizard" ? "wizard" : "", ev.interrupted ? "interrupted" : ""]
       .filter(Boolean)
