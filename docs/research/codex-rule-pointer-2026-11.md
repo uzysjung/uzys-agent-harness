@@ -65,6 +65,16 @@
 
 남는 한계: 모델 하나(`gpt-6-astra`) · 작업 종류 둘 · 실행당 짧은 세션. OpenCode 의 포인터 따르기는 재지 않았다.
 
+## 3차 — 실제 하네스 설치본 (#948 구현 브랜치 6e7ac63)
+
+- 하네스를 컨테이너 안에서 `install --track ssr-nextjs --cli codex --cli antigravity` 로 설치한 프로젝트(`install-in-docker.sh`). 렌더된 `AGENTS.md` 21,333 B, `## Harness Rules` 블록 끝에 측정한 형태 그대로의 포인터 목록(`**/*.tsx` · `**/*.jsx` → `.agents/rules/ui-components.md`), 가리키는 파일은 Antigravity 가 쓴 것.
+- 룰 본문은 **실제 배포 룰 그대로**(표식 없음) — 판정은 실행 기록의 읽기 순서만 본다(`run-e2e.sh`, 전역 설정 없는 `CODEX_HOME`, xhigh).
+
+| 작업 | 룰을 `.tsx` 쓰기 전에 읽음 |
+|---|---|
+| 덤으로 고치기 | **3/3** |
+| 새로 만들기 | **1/1** |
+
 ## 판단에 쓰는 법
 
 - **경로가 정해진 룰**(`paths:` — `cli-development` · `ui-components` · `htmx-*-ui`)을 Codex 조합에서 조건부 포인터로 바꾸는 근거가 된다(1·2차 15/15, 덤으로 고치기 · medium 포함). 스킬(C)도 5/5 였다. 이 룰들은 Claude Code 에서도 "그 파일을 고칠 때만 읽는다"로 쓰이고, #944 조합의 초과 바이트가 바로 이 룰들이다.
