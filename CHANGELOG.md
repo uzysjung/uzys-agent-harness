@@ -7,6 +7,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 > v26.x.x 부터 git tag versioning(CalVer, year-2000)으로 통합. CHANGELOG 도 CalVer 로 표기. v0.8.x 는 이전 npm-기반 추적.
 
+## [v26.182.0] — 2026-11-03 (Codex + Antigravity 의 경로 룰은 파일을 가리킨다)
+
+### Changed
+- **Codex 와 Antigravity 를 함께 깔면 특정 파일용 룰을 `AGENTS.md` 본문 대신 룰 파일에서 읽는다** (#948, PR #950) — `ui-components` · `cli-development` · `htmx-*-ui` 처럼 경로가 정해진 룰은 `AGENTS.md` 에 "아래 파일을 만들거나 고치기 전에 그 룰을 읽고 따른다" 목록만 남고, 본문은 Antigravity 가 쓰는 `.agents/rules/<룰>.md` 에 있다. Codex 는 그 파일을 고칠 때만 룰을 읽는다(Claude Code 의 `paths:` 와 같은 동작). update 로 들어온다.
+  - 근거: 실 Codex 측정에서 포인터를 둔 19회 모두 파일을 고치기 전에 룰을 읽었다. 작업 문장에 파일 종류가 안 나오는 경우와 낮은 추론 강도에서도 같았다(`docs/research/codex-rule-pointer-2026-11.md`).
+  - 그 조합의 `AGENTS.md` 는 두 트랙 조합 전부에서 Antigravity 상한 24,000 B 안이다(최대 21,528 B).
+  - 늘 적용되는 룰과 Working Principles 는 그대로 본문에 있다. OpenCode 가 섞인 설치, Codex 만 깐 설치, 설치자가 원래 갖고 있던 `AGENTS.md` 에 하네스 블록이 들어간 설치는 바뀌지 않는다.
+  - update 화면의 상주 비용 줄은 이 경우 경로 룰을 `.agents/rules/` 파일로 센다.
+
 ## [v26.181.0] — 2026-11-03 (AGENTS.md 를 설치한 CLI 조합에 맞게 · Working Principles 자율 진행 구체화)
 
 ### Changed
