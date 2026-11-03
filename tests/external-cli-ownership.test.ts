@@ -99,6 +99,7 @@ function agents(clis: ReadonlyArray<AgentsMdCli>, baseline: ReadonlyMap<string, 
     selectedInternalSkills: SKILLS,
     rules: [],
     baseline,
+    rulesViaInstructions: false,
   });
 }
 

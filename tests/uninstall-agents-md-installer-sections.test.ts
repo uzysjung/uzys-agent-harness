@@ -12,7 +12,8 @@ const HARNESS_ROOT = resolve(__dirname, "..");
 /**
  * #736 — `AGENTS.md` 에 자기 절을 덧붙인 설치자가 **어떤 uninstall 경로를 거쳐도** 그 글을 잃지 않는다.
  *
- * 결함이 생기는 순서 그대로다: install → 하네스 절 자리(파일 끝 · `## Session Start` 앞)에 `## Team rules` → update
+ * 결함이 생기는 순서 그대로다: install → 하네스 절 자리(파일 끝 = `## Harness Rules` 안 · `## Harness Rules` 앞 = `## Protected Files`
+ * 안 — #944 순서)에 `## Team rules` → update
  * (설치자 절을 살린 채 다시 써서 기록 sha = 디스크) → 마지막 비-Claude CLI 를 빼거나 전체 uninstall. 고치기 전에는
  * Project Context 를 안 채웠으면 파일째 지워지고, 채웠으면 그 절만 빠졌다(둘 다 update 백업에만 남는다).
  */
@@ -61,7 +62,7 @@ describe("#736 uninstall 은 AGENTS.md 에 설치자가 덧붙인 절을 남긴�
 
   /** 설치자 편집 → update. update 가 그 글을 살린 채 기록을 디스크에 맞췄는지까지 자기검증한다. */
   const editThenUpdate = (opts: {
-    team: "end" | "beforeSessionStart" | null;
+    team: "end" | "beforeHarnessRules" | null;
     fillContext: boolean;
   }): void => {
     let text = agents();
@@ -70,9 +71,9 @@ describe("#736 uninstall 은 AGENTS.md 에 설치자가 덧붙인 절을 남긴�
       expect(text, "픽스처 자기검증 — 맥락 줄이 들어갔다").toContain(CONTEXT_LINE);
     }
     if (opts.team === "end") text = `${text.replace(/\n+$/, "\n")}\n${TEAM}\n`;
-    if (opts.team === "beforeSessionStart") {
-      expect(text, "픽스처 자기검증 — 끼울 자리가 있다").toContain("\n## Session Start\n");
-      text = text.replace("\n## Session Start\n", `\n${TEAM}\n\n## Session Start\n`);
+    if (opts.team === "beforeHarnessRules") {
+      expect(text, "픽스처 자기검증 — 끼울 자리가 있다").toContain("\n## Harness Rules\n");
+      text = text.replace("\n## Harness Rules\n", `\n${TEAM}\n\n## Harness Rules\n`);
     }
     writeFileSync(agentsPath(), text);
     install(["claude"], "update");
@@ -107,7 +108,7 @@ describe("#736 uninstall 은 AGENTS.md 에 설치자가 덧붙인 절을 남긴�
     { path: "전체 uninstall", cli: undefined },
   ];
   for (const { path, cli } of cases) {
-    for (const team of ["end", "beforeSessionStart"] as const) {
+    for (const team of ["end", "beforeHarnessRules"] as const) {
       for (const fillContext of [false, true]) {
         it(`${path} · ## Team rules 위치=${team} · Project Context ${fillContext ? "채움" : "안 채움"} → 그 절이 남는다`, () => {
           install(["claude", "codex"]);

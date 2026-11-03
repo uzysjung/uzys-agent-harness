@@ -40,6 +40,12 @@ export interface AgentsMdTransformParams {
   selectedInternalSkills: ReadonlyArray<string>;
   /** 인라인 룰(`## Harness Rules`) — codex · opencode 가 집합에 있을 때만 들어간다. */
   rules: ReadonlyArray<string>;
+  /**
+   * #944 (ADR-116) — 이번 실행이 OpenCode 의 룰 도달을 `opencode.json` `instructions` 로 보장했다(`runCliTransforms` 가 쓴 결과로
+   * 정한다). 참이고 Codex 가 집합에 없으면 룰 본문 대신 위치 안내를 쓴다. **required** — `opencode.json` 을 쓰지 않는 경로
+   * (`uninstall --cli` 재렌더)는 `false` 를 명시한다: 보장하지 못한 채 안내만 쓰면 OpenCode 가 룰을 0번 받는다.
+   */
+  rulesViaInstructions: boolean;
   /** 기준선(install log `externalFiles` + 이 실행의 앞 변환 결과). */
   baseline: ReadonlyMap<string, string>;
   /** `update` · `uninstall --cli` 경로 — 없는 파일은 `installedByRecord` 일 때만 만든다. */
@@ -127,6 +133,7 @@ export function runAgentsMdTransform(params: AgentsMdTransformParams): AgentsMdT
     ),
     harnessRules: renderRulesBlock(portRules(harnessRoot, params.rules)),
     clis,
+    rulesViaInstructions: params.rulesViaInstructions,
   });
   const agentsMd = writeAgentsMd({
     projectDir,

@@ -9,7 +9,10 @@
  * 집합이 정하는 것 — 나머지는 집합과 무관하게 같다:
  *   - 제목의 CLI 이름(`{CLI_NAMES}`)
  *   - `## Harness Rules`(룰 인라인) — Codex · OpenCode 는 룰 디렉터리가 없어 본문으로 받는다. Antigravity 는
- *     `.agents/rules/` 로 받으므로 Antigravity 만이면 절째 없다
+ *     `.agents/rules/` 로 받으므로 Antigravity 만이면 절째 없다. 이 절은 **파일 맨 끝**이다(#944 · ADR-116) — Antigravity 가
+ *     24,000 B 에서 자르고 Codex 가 32 KiB 에서 멈출 때 빠지는 것이 설치자 절이 아니라 룰 사본의 뒷부분이게 한다
+ *   - #944 — Codex 가 없고 이번 실행이 OpenCode 의 `instructions` 로 `.agents/rules/` 를 읽게 해 뒀으면
+ *     (`rulesViaInstructions`) 룰 본문 대신 위치 안내 한 문단 — 두 CLI 가 룰을 한 번씩만 읽는다
  *   - `## Session Start` — Codex 만의 문장(SessionStart 훅이 없는 CLI 의 SPEC 안내는 Codex 에서 왔다)
  *   - `## Protected Files` 의 첫 줄 — 그 CLI 의 1차 방어
  *
@@ -53,11 +56,22 @@ export interface AgentsMdParams {
   harnessRules: string;
   /** 이 파일을 읽는 깔린 CLI 집합. 비면 호출부 버그다(claude 단독은 이 파일을 쓰지 않는다). */
   clis: ReadonlyArray<AgentsMdCli>;
+  /**
+   * #944 (ADR-116) — 이번 실행이 OpenCode 의 룰 도달을 `opencode.json` `instructions` 의 `.agents/rules/*.md` 로 보장했다
+   * (`runCliTransforms` 가 실제로 쓴 결과로 정한다). 참이고 Codex 가 집합에 없으면 룰 본문 대신 위치 안내를 쓴다. 생략 = 거짓.
+   */
+  rulesViaInstructions?: boolean;
 }
 
 const RULES_NOTE = [
-  "> 하네스가 설치한 룰이 여기 본문으로 들어온다. 이 프로젝트에서만 지킬 규칙을 세우면 이 문서에",
-  "> 이어 쓰거나, 하위 디렉터리에 `AGENTS.md` 를 두면 그 범위에서 더 구체적인 규칙이 된다.",
+  "> 하네스가 설치한 룰이 여기 본문으로 들어온다. 이 프로젝트에서만 지킬 규칙을 세우면 이 절 **위에** `## ` 절로",
+  "> 쓰거나, 하위 디렉터리에 `AGENTS.md` 를 두면 그 범위에서 더 구체적인 규칙이 된다.",
+].join("\n");
+
+/** #944 — 룰 본문 대신 쓰는 위치 안내(Codex 가 없는 집합에서만 — 그 문장이 참인 곳). */
+const RULES_POINTER = [
+  "> 하네스 룰은 `.agents/rules/` 에 있다. Antigravity 는 그 폴더를 직접, OpenCode 는 `opencode.json` 의",
+  "> `instructions` 로 읽는다. 이 프로젝트만의 규칙은 이 절 **위에** `## ` 절로 쓴다.",
 ].join("\n");
 
 const CODEX_SIZE_NOTE = [
@@ -126,14 +140,18 @@ function pruneTemplate(template: string, empty: ReadonlySet<string>): string {
 export function renderAgentsMd(params: AgentsMdParams): string {
   const clis = agentsMdClis(params.clis);
   if (clis.length === 0) throw new Error("renderAgentsMd: empty CLI set");
-  const inlineRules = clis.includes("codex") || clis.includes("opencode");
+  // #944 — 위치 안내는 Codex 가 없을 때만 참이다(Codex 는 `.agents/rules/` 를 읽지 않는다 — `AGENTS.md` 가 유일한 사본)
+  const pointer = params.rulesViaInstructions === true && !clis.includes("codex");
+  const inlineRules = !pointer && (clis.includes("codex") || clis.includes("opencode"));
   const leads = clis.flatMap((c) => PROTECTED_LEAD[c] ?? []);
   const values: Record<string, string> = {
-    "{HARNESS_RULES_NOTE}": inlineRules
-      ? clis.includes("codex")
-        ? `${RULES_NOTE}\n${CODEX_SIZE_NOTE}`
-        : RULES_NOTE
-      : "",
+    "{HARNESS_RULES_NOTE}": pointer
+      ? RULES_POINTER
+      : inlineRules
+        ? clis.includes("codex")
+          ? `${RULES_NOTE}\n${CODEX_SIZE_NOTE}`
+          : RULES_NOTE
+        : "",
     "{HARNESS_RULES}": inlineRules ? params.harnessRules : "",
     "{SESSION_START}": clis.includes("codex") ? CODEX_SESSION_START : "",
     "{PROTECTED_FILES_LEAD}": leads.length === 0 ? "" : `${leads.join("\n")} 그 위에:`,

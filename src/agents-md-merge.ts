@@ -357,7 +357,7 @@ export function mergeAgentsMdDetailed(params: MergeAgentsMdParams): MergeAgentsM
   // 설치자가 덧쓴 줄인지 판정할 근거가 없다 — 그때는 최신판으로 간다(편집분은 `owned-write` 의
   // `.backup-<stamp>` 에 남는다). 마커가 있는 판부터는 블록만 갈아 끼우므로 덧쓴 줄이 남는다.
   // 다만 그 본문 안에 설치자가 적은 `## ` 절은 라이브에 남긴다(ADR-097 결정 4 · #739) — 렌더의 같은 절에 없는 제목이
-  // 그것이다(집합 대조). 아래 `extraTopLevelSections` 가 다른 설치자 절과 같이 파일 끝에 되살린다.
+  // 그것이다(집합 대조). 아래 `extraTopLevelSections` 가 다른 설치자 절과 같이 `## Harness Rules` 앞에 되살린다.
   let replacedRulesHeadings: ReadonlySet<string> | null = null;
   if (rulesNow !== null && rulesNew !== null && blockRange(rulesNow, ANCHOR_BLOCK) !== null) {
     bodies.set(RULES_SECTION, refreshBlock(rulesNow, rulesNew, ANCHOR_BLOCK));
@@ -368,7 +368,7 @@ export function mergeAgentsMdDetailed(params: MergeAgentsMdParams): MergeAgentsM
   const merged = bodies.size === 0 ? rendered : assemble(rendered, names, bodies);
   // #643 — 스켈리톤이 모르는 상위 절(사용자가 파일 끝에 붙인 `## My Team Conventions` 등)은
   // 렌더에 자리가 없어 조용히 사라졌다. ADR-095 가 설치자 소유로 정한 것은 **아는 절들**이다 —
-  // 모르는 절을 지우는 권한까지는 없다. 원래 순서 그대로 파일 끝에 되살린다.
+  // 모르는 절을 지우는 권한까지는 없다. 원래 순서 그대로 `## Harness Rules` 앞(그 절이 없으면 파일 끝)에 되살린다(#944).
   // 어느 절이 설치자 것인지는 uninstall 의 걷기와 같은 판정(`headingOwner`)이 정한다(#739). 아는 절 본문
   // (`## Project Context`·`## Project Rules` 아래)의 `## ` 는 그 본문의 소유 규칙(마커 블록)이 맡으므로 다시 모으지 않는다 —
   // 모으면 update 마다 한 벌씩 늘거나, 옛 판 앵커·스캐폴드 제목이 파일 끝에 되살아난다.
@@ -396,13 +396,33 @@ export function mergeAgentsMdDetailed(params: MergeAgentsMdParams): MergeAgentsM
   );
   if (extras.length === 0) return { text: merged, droppedLegacySections, editedLegacySections };
   return {
-    text: `${merged.replace(/\n+$/, "\n")}${extras.map((e) => e.join("\n")).join("\n")}`.replace(
-      /\n+$/,
-      "\n",
-    ),
+    text: placeBeforeHarnessRules(merged, names, extras),
     droppedLegacySections,
     editedLegacySections,
   };
+}
+
+/**
+ * #944 (ADR-116) — 되살린 설치자 절은 `## Harness Rules` **바로 앞**에 둔다. 그 절은 파일 맨 끝이라 Antigravity 가 24,000 B 에서
+ * 자르거나 Codex 가 32 KiB 에서 멈출 때 빠지는 것은 룰 사본의 뒷부분이어야 한다 — 설치자 글이 아니라. 렌더에 그 절이 없으면
+ * (인라인 룰 없음) 전처럼 파일 끝.
+ */
+function placeBeforeHarnessRules(
+  merged: string,
+  names: ReadonlySet<string>,
+  extras: ReadonlyArray<ReadonlyArray<string>>,
+): string {
+  const lines = merged.split("\n");
+  const at = lines.findIndex((l) => headingName(l, names) === HARNESS_RULES_SECTION);
+  if (at === -1) {
+    return `${merged.replace(/\n+$/, "\n")}${extras.map((e) => e.join("\n")).join("\n")}`.replace(
+      /\n+$/,
+      "\n",
+    );
+  }
+  const head = trimTrailingBlanks(lines.slice(0, at));
+  const block = extras.flatMap((e) => [...e, ""]);
+  return [...head, "", ...block, ...lines.slice(at)].join("\n");
 }
 
 /** `headingOwner` 의 판정 — 하네스 것 · 설치자 것 · 아는 절 본문(그 절의 소유 규칙이 맡는다). */
@@ -447,7 +467,7 @@ function renderedRuleHeadings(rendered: string, names: ReadonlySet<string>): Set
 }
 
 /**
- * 설치자가 하네스 절 자리에 적은 `## ` 절을 [헤딩 포함 줄 배열] 단위로 원래 순서대로 — 병합이 파일 끝에 되살린다.
+ * 설치자가 하네스 절 자리에 적은 `## ` 절을 [헤딩 포함 줄 배열] 단위로 원래 순서대로 — 병합이 `## Harness Rules` 앞에 되살린다.
  * `replacedRulesHeadings` 가 있으면 `## Project Rules` 본문을 통째로 갈아 끼우는 중이다(마커 없는 옛 판) — 그 본문의
  * `## ` 중 이 집합(렌더의 같은 절 제목)에 없는 것도 설치자 절로 모은다. 단 옛 판이 바이트 그대로 쓴 절(앵커 절 · 옛 템플릿
  * 꼬리 절 — `isLegacyHarnessSection`)은 **어느 후보 자리에 있든** 하네스가 쓰고 은퇴시킨 것이다 — 되살리지 않고 `legacy` 로

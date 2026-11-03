@@ -184,6 +184,17 @@ function oldBlockUpdatedByV169(text: string): void {
   writeInstallLog(projectDir, l);
 }
 
+/**
+ * #944 — 되살린 설치자 절의 자리: `## Protected Files` 와 `## Harness Rules`(파일 맨 끝) 사이의 `## ` 제목. 그 절이 없는 렌더면
+ * `## Protected Files` 뒤 전부.
+ */
+function installerSlot(text: string): string[] {
+  const all = headings(text);
+  const from = all.indexOf("## Protected Files") + 1;
+  const to = all.indexOf("## Harness Rules", from);
+  return all.slice(from, to === -1 ? undefined : to);
+}
+
 /** 옛 하네스 몫이 하나도 안 남았다(머리 · 옛 배너 · 옛 앵커 · 꼬리). */
 function expectNoOldHarness(text: string): void {
   expect(text).not.toContain(OLD_PREAMBLE);
@@ -226,12 +237,12 @@ describe("#774 update — 옛 판 `AGENTS.md`", () => {
     const after = agents();
     expectNoOldHarness(after);
     expect(after).toContain(ANCHOR_START);
-    expect(headings(after).at(-1)).toBe("## My Team Rules");
+    expect(installerSlot(after).at(-1)).toBe("## My Team Rules");
     expect(backups()).toHaveLength(1);
     expect((log().rootFiles ?? []).filter((f) => f.path === "AGENTS.md")).toEqual([]);
   });
 
-  it("② 설치자가 더한 절과 한 줄 고친 옛 앵커 절은 파일 끝에 남는다 — 그 밖의 옛 하네스 몫은 0", () => {
+  it("② 설치자가 더한 절과 한 줄 고친 옛 앵커 절은 설치자 절 자리(`## Harness Rules` 앞)에 남는다 — 그 밖의 옛 하네스 몫은 0", () => {
     const edited = `${V100.replace(
       "## Rule 3 — Surgical Changes\n",
       "## Rule 3 — Surgical Changes\n\nMINE-ANCHOR-EDIT\n",
@@ -242,8 +253,7 @@ describe("#774 update — 옛 판 `AGENTS.md`", () => {
     run(["claude", "codex"], "update");
 
     const after = agents();
-    const tail = headings(after).slice(headings(after).indexOf("## Protected Files") + 1);
-    expect(tail).toEqual(["## Rule 3 — Surgical Changes", "## My Team Rules"]);
+    expect(installerSlot(after)).toEqual(["## Rule 3 — Surgical Changes", "## My Team Rules"]);
     expect(after).toContain("MINE-ANCHOR-EDIT");
     expect(after).toContain("MINE-SECTION");
     expect(after).not.toContain("## Rule 1 — Think Before Coding");
@@ -278,7 +288,7 @@ describe("#774 update — 옛 판 `AGENTS.md`", () => {
 
     const after = agents();
     for (const t of TAIL) expect(after, t).not.toContain(t);
-    expect(headings(after).at(-1)).toBe("## My Team Rules");
+    expect(installerSlot(after).at(-1)).toBe("## My Team Rules");
     expect(after).toContain("MINE-SECTION");
     expect(screen).toContain("removed 6 section(s) written by an older harness version");
     expect(backupText()).toEqual([V140_V169]);
@@ -309,7 +319,7 @@ describe("#774 update — 옛 판 `AGENTS.md`", () => {
     expectNoOldHarness(after);
     expect(after).toContain(ANCHOR_START);
     expect(after).not.toContain(AGENTS_BLOCK_START);
-    expect(headings(after).at(-1)).toBe("## My Team Rules");
+    expect(installerSlot(after).at(-1)).toBe("## My Team Rules");
     const l = log();
     expect(
       (l.rootFiles ?? []).filter((f) => f.path === "AGENTS.md"),

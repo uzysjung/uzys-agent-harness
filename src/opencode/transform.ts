@@ -25,7 +25,7 @@ import { backupFile, ensureDir } from "../fs-ops.js";
 import type { McpJson } from "../mcp-merge.js";
 import { createOwnedWriter, type OwnedWriteResult, type WriteJournal } from "../owned-write.js";
 import { type SharedRecord, type SharedWriteResult, writeShared } from "../shared-write.js";
-import { renderOpencodeJson, renderOpencodeMcp } from "./opencode-json.js";
+import { hasRulesInstruction, renderOpencodeJson, renderOpencodePortion } from "./opencode-json.js";
 
 export interface OpencodeTransformParams {
   harnessRoot: string;
@@ -63,6 +63,11 @@ export interface OpencodeTransformParams {
   journal?: WriteJournal;
   /** #761 B-1 — 기준선 밖이어도 기록이 하네스 것이라 말하는 경로(`OwnedWriterOptions.owned`). */
   owned?: (rel: string) => boolean;
+  /**
+   * #944 (ADR-116) — `instructions` 에 룰 원소(`.agents/rules/*.md`)를 하네스 몫으로 더한다. 호출부(`runCliTransforms`)가 정한다:
+   * Antigravity ∈ 이번 선택 ∧ Codex ∉ `AGENTS.md` 집합. 거짓이면 렌더에 없다 — 기록된 원소는 `planUpsert` 가 걷는다. 생략 = 거짓.
+   */
+  rulesInstruction?: boolean;
 }
 
 export interface OpencodeTransformReport {
@@ -72,6 +77,11 @@ export interface OpencodeTransformReport {
    * 부재는 "알릴 것 없음".
    */
   opencodeJson?: SharedWriteResult;
+  /**
+   * #944 — 쓰기 **뒤** 디스크의 `opencode.json` 을 다시 읽어 `instructions` 에 룰 원소가 있다(누구 것이든). `AGENTS.md` 가 룰 본문
+   * 대신 위치 안내를 쓸 수 있는 조건 하나다 — 기록이 아니라 OpenCode 가 실제로 읽을 파일로 본다. optional = stub 은 "없음".
+   */
+  rulesViaInstructions?: boolean;
   /**
    * `.agents/skills/<id>/` 에 쓴 **모든** 파일 — codex·antigravity 와 같은 자리(같은 파일)다.
    * #431 이후 `SKILL.md` 의 형제(references/scripts 등)도 함께 들어온다.
@@ -121,10 +131,11 @@ export function runOpencodeTransform(params: OpencodeTransformParams): OpencodeT
 
   ensureDir(projectDir);
 
-  // 1. opencode.json — 함께 쓰는 파일(#563 · ADR-097 §6.2 `json-keys`): 하네스 MCP 키(`mcp.<name>`)만 upsert 한다.
-  //    템플릿의 나머지 키는 파일을 새로 만들 때만 바탕(seed)으로 깔린다.
+  // 1. opencode.json — 함께 쓰는 파일(#563 · ADR-097 §6.2 `json-keys`): 하네스 MCP 키(`mcp.<name>`)와 — #944 조건이 맞으면 —
+  //    `instructions` 의 룰 원소 하나만 upsert 한다. 템플릿의 나머지 키는 파일을 새로 만들 때만 바탕(seed)으로 깔린다.
+  //    이 파일을 쓰는 곳은 여기 하나다(한 실행에서 같은 파일을 두 번 `writeShared` 하면 앞 몫이 사라진다).
   const opencodeJsonPath = join(projectDir, OPENCODE_JSON);
-  const render = renderOpencodeMcp(mcp);
+  const render = renderOpencodePortion(mcp, params.rulesInstruction === true);
   const opencodeJson = writeShared({
     projectDir,
     path: OPENCODE_JSON,
@@ -202,6 +213,7 @@ export function runOpencodeTransform(params: OpencodeTransformParams): OpencodeT
   return {
     opencodeJsonPath,
     opencodeJson,
+    rulesViaInstructions: rulesInstructionOnDisk(opencodeJsonPath),
     skillFiles,
     retiredCommands,
     forgetCommands,
@@ -210,6 +222,15 @@ export function runOpencodeTransform(params: OpencodeTransformParams): OpencodeT
 }
 
 const OPENCODE_JSON = "opencode.json";
+
+/** 디스크의 `opencode.json` 이 룰 원소를 갖는가 — 없거나 못 읽으면 거짓(`AGENTS.md` 는 인라인으로 간다). */
+function rulesInstructionOnDisk(path: string): boolean {
+  try {
+    return existsSync(path) && hasRulesInstruction(readFileSync(path, "utf8"));
+  } catch {
+    return false;
+  }
+}
 
 function readRequired(path: string): string {
   if (!existsSync(path)) {

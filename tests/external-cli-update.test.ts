@@ -278,12 +278,10 @@ describe("update — 없던 산출물은 만들지 않는다 (ⓑ)", () => {
       runExternal: null,
     });
 
-    // 룰은 하네스 절(`## Harness Rules` ~ `## Session Start`) 안에 있어야 한다 — 그 밖에 남은 제목은 옛 판의 잔재다
+    // 룰은 하네스 절(`## Harness Rules` ~ 파일 끝, #944 순서) 안에 있어야 한다 — 그 밖에 남은 제목은 옛 판의 잔재다
     const after = readFileSync(agents, "utf8");
-    const rules = after.slice(
-      after.indexOf("## Harness Rules\n"),
-      after.indexOf("## Session Start\n"),
-    );
+    expect(after.indexOf("## Harness Rules\n"), "픽스처 자기검증 — 절이 있다").toBeGreaterThan(0);
+    const rules = after.slice(after.indexOf("## Harness Rules\n"));
     expect(rules).toContain("## Testing");
   });
 

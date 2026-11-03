@@ -11,6 +11,7 @@
  * `McpLocalConfig`(additionalProperties false).
  */
 
+import { jsonKeys } from "../adapters/json-keys.js";
 import type { McpJson } from "../mcp-merge.js";
 
 export interface RenderOpencodeJsonParams {
@@ -80,6 +81,37 @@ export function renderOpencodeMcp(mcp: McpJson): Map<string, OpencodeMcp> {
   return new Map(
     Object.entries(mcp.mcpServers).map(([name, cfg]) => [`mcp.${name}`, toOpencode(cfg)]),
   );
+}
+
+/**
+ * #944 (ADR-116) — OpenCode 가 하네스 룰을 읽는 `instructions` 원소: Antigravity 가 쓰는 `.agents/rules/` 그대로. OpenCode 는
+ * 상대 경로를 실행 폴더에서 프로젝트 루트까지 올라가며 글롭하고(점 폴더 포함) 그 파일을 `AGENTS.md` 와 함께 읽는다.
+ */
+export const RULES_INSTRUCTION = ".agents/rules/*.md";
+/** 그 원소의 몫 키 — `json-keys` 의 문자열 동치 배열 원소(`instructions[=…]`). */
+export const RULES_INSTRUCTION_KEY = `instructions[=${RULES_INSTRUCTION}]`;
+
+/**
+ * `opencode.json` 의 하네스 몫 전체 — 서버 키(`mcp.<name>`) + 조건부로 룰 원소. 변환(쓰기)과 `--without` 이 받는 키 id
+ * (`key-ids.ts`)가 같은 함수로 잰다 — 둘이 갈리면 `--without` 이 그 원소를 못 받는다.
+ *
+ * @param rulesInstruction 원소를 더할지 — `runCliTransforms` 가 정한다(Antigravity ∈ 이번 선택 ∧ Codex ∉ `AGENTS.md` 집합).
+ */
+export function renderOpencodePortion(
+  mcp: McpJson,
+  rulesInstruction: boolean,
+): Map<string, OpencodeMcp | string> {
+  const out = new Map<string, OpencodeMcp | string>(renderOpencodeMcp(mcp));
+  if (rulesInstruction) out.set(RULES_INSTRUCTION_KEY, RULES_INSTRUCTION);
+  return out;
+}
+
+/**
+ * 이 `opencode.json` 본문의 `instructions` 에 룰 원소가 있는가 — 하네스 것이든 설치자 것이든(값으로 본다). 못 읽으면 거짓.
+ * 판정은 어댑터의 읽기 그대로다(같은 파서 · 같은 원소 규칙).
+ */
+export function hasRulesInstruction(text: string): boolean {
+  return jsonKeys.read(text, [RULES_INSTRUCTION_KEY])?.has(RULES_INSTRUCTION_KEY) === true;
 }
 
 /**

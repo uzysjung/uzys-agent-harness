@@ -43,6 +43,7 @@ import {
 import { type OpencodeTransformReport, runOpencodeTransform } from "./opencode/transform.js";
 import { createOutsideGuard, mergeOutside, type OutsideLink } from "./outside-project.js";
 import type { OwnedWriteResult, WriteJournal } from "./owned-write.js";
+import { portRules } from "./rules-port.js";
 import type { SharedRecord, SharedWriteResult } from "./shared-write.js";
 import { anyTrack } from "./track-match.js";
 import { CLI_BASES, type CliBase, type Track } from "./types.js";
@@ -278,6 +279,23 @@ export function adapterExcluded(
   return out;
 }
 
+/**
+ * #944 — Antigravity 변환이 이번 룰을 **전부** `.agents/rules/<룰>.md` 에 썼나(`harnessRuleFiles` — 링크 · 남의 슬롯이라 건너뛴 자리는
+ * 없다). 변환이 안 돌았으면 거짓. 원본이 없는 룰 이름은 어느 쪽에도 안 나가므로 세지 않는다(`portRules` 와 같은 거름).
+ */
+function wroteEveryRule(
+  harnessRoot: string,
+  projectDir: string,
+  report: AntigravityTransformReport | null,
+  rules: ReadonlyArray<string>,
+): boolean {
+  if (report === null) return false;
+  const written = new Set(report.harnessRuleFiles);
+  return portRules(harnessRoot, rules).every((r) =>
+    written.has(join(projectDir, ".agents", "rules", `${r.name}.md`)),
+  );
+}
+
 function mcpSources(harnessRoot: string): { templateMcpPath: string; trackMapPath: string } {
   return {
     templateMcpPath: join(harnessRoot, "templates/mcp.json"),
@@ -390,6 +408,10 @@ export function runCliTransforms(params: CliTransformParams): CliTransformResult
     journal?.done("codex");
   }
 
+  // #642 (ADR-103) — 루트 `AGENTS.md` 의 집합 = 이번 선택 ∪ 기록된 CLI(ADR-096 D2 — CLI 집합은 누적이고 `--reinstall` 도 누적).
+  // #944 — opencode 변환 **전에** 잰다: 룰 원소를 더할지가 이 집합에 Codex 가 있는지에 달렸다.
+  const agentsSet = agentsMdClis([...cli, ...recordedClis]);
+
   let opencode: OpencodeTransformReport | null = null;
   if (cli.includes("opencode")) {
     opencode = runOpencodeTransform({
@@ -400,6 +422,9 @@ export function runCliTransforms(params: CliTransformParams): CliTransformResult
       baseline,
       refreshOnly,
       shared,
+      // #944 (ADR-116) — Antigravity 가 이번에 `.agents/rules/` 를 쓰고 Codex 가 `AGENTS.md` 를 읽지 않을 때만 원소를 더한다.
+      // 쓰기 주체는 이 변환 하나다 — `AGENTS.md` 쪽은 결과(`rulesViaInstructions`)만 읽는다
+      rulesInstruction: cli.includes("antigravity") && !agentsSet.includes("codex"),
       ...writerParams,
     });
     absorb(opencode);
@@ -424,18 +449,26 @@ export function runCliTransforms(params: CliTransformParams): CliTransformResult
     journal?.done("antigravity");
   }
 
-  // #642 (ADR-103) — 루트 `AGENTS.md` 는 세 변환 **뒤에** 한 번, 이 실행의 집합으로 쓴다. 집합 = 이번 선택 ∪ 기록된 CLI
-  // (ADR-096 D2 — CLI 집합은 누적이고 `--reinstall` 도 누적). 한 판이 이기던 구조(#550 의 "쓰는 쪽은 하나")가 사라진다.
-  const agentsSet = agentsMdClis([...cli, ...recordedClis]);
+  // #642 (ADR-103) — 루트 `AGENTS.md` 는 세 변환 **뒤에** 한 번, 이 실행의 집합으로 쓴다. 한 판이 이기던 구조(#550 의 "쓰는 쪽은
+  // 하나")가 사라진다.
   let agentsMd: AgentsMdTransformReport | null = null;
   if (agentsSet.length > 0) {
     const beyondThisRun = agentsSet.some((c) => !cli.includes(c));
+    const agentsRules =
+      beyondThisRun && params.cumulativeRules !== undefined ? params.cumulativeRules : rules;
     agentsMd = runAgentsMdTransform({
       harnessRoot,
       projectDir,
       clis: agentsSet,
       selectedInternalSkills,
-      rules: beyondThisRun && params.cumulativeRules !== undefined ? params.cumulativeRules : rules,
+      rules: agentsRules,
+      // #944 (ADR-116) — 룰 본문 대신 위치 안내는 이번 실행이 OpenCode 의 도달을 **보장했을 때만**(집합이 아니라 쓴 결과로):
+      // ① Codex ∉ 집합 ② opencode 변환이 이번에 돌았다 ③ Antigravity 가 이번 룰을 전부 `.agents/rules/` 에 썼다 ④ 그 뒤
+      // 디스크의 `opencode.json` 에 룰 원소가 있다. 하나라도 거짓이면 인라인 — OpenCode 가 룰을 0번 받는 실행은 없다
+      rulesViaInstructions:
+        !agentsSet.includes("codex") &&
+        opencode?.rulesViaInstructions === true &&
+        wroteEveryRule(harnessRoot, projectDir, antigravity, agentsRules),
       baseline,
       refreshOnly,
       // ADR-099 R2 — 기록이 이 파일을 읽는 CLI 를 깔린 것으로 말하면 없어도 만든다(26.164.0 이하 Antigravity 단독 설치본은

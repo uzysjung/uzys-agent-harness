@@ -237,7 +237,8 @@ describe("#516 uninstall 이 AGENTS.md 의 하네스 절만 걷어내고 설치�
   const fill = (): void => {
     const filled = read()
       .replace("## Project Context\n", `## Project Context\n\n${CONTEXT_LINE}\n`)
-      .replace("\n## Harness Rules", `\n${RULE_LINE}\n\n## Harness Rules`);
+      // `## Project Rules` 본문의 끝 — 다음 절(codex 판은 `## Session Start`, #944 순서) 바로 앞
+      .replace("\n## Session Start", `\n${RULE_LINE}\n\n## Session Start`);
     expect(filled, "대조군 — 채우기가 실제로 들어갔어야 아래 판정이 의미가 있다").toContain(
       RULE_LINE,
     );
