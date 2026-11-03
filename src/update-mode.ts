@@ -747,6 +747,7 @@ export function runUpdateMode(
         legacyDroppedKeys(logAtStart),
         harnessMcp,
         report.skillsSkippedLinks.filter((id) => linksToProjectSharedSkill(projectDir, id)),
+        harness.wrote,
       )
     : {
         externalUpdated: 0,
@@ -2178,6 +2179,8 @@ function refreshExternalCli(
   harnessMcp: McpJson,
   /** #524 · #769 — `.claude/skills/<id>` 가 이 프로젝트의 `.agents/skills/<id>` 링크인 id. */
   linkedIds: ReadonlyArray<string>,
+  /** #953 (ADR-118) — 1단계(`updateHarnessFiles`)가 이번에 판정해 쓴 경로 — `runCliTransforms` 의 `harnessWrote`. */
+  harnessWrote: ReadonlySet<string>,
 ): {
   externalUpdated: number;
   externalBackedUp: string[];
@@ -2258,6 +2261,8 @@ function refreshExternalCli(
     // #761 B-1 — 외부 기록이 아예 없던 옛 판의 산출물은 첫 접촉이 아니라 체크섬 없는 하네스 파일이다(install 과 같은 판정).
     // 앞 단계(하네스 파일 쓰기)가 헬퍼만 든 `externalFiles` 를 적어도 같은 답이다 — 헬퍼는 외부 자리로 세지 않는다(B-2)
     owned: recordedOwner(log),
+    // #953 (ADR-118) — install 과 같은 인자: 이번 실행의 하네스 writer 가 이 변환 앞에서 남긴 경로(`.claude/rules/` 포인터의 근거)
+    harnessWrote,
   });
   // #769 — 링크 슬롯의 공유 본문은 claude 의 몫이다: 이 실행의 외부 변환이 쓰지 않은 것(그 자리를 쓰는 외부 CLI 가 빠진 설치본 —
   // `uninstall --cli codex` 뒤)은 add 와 같은 함수로 갱신한다. 외부 변환이 쓴 것은 건너뛴다(같은 파일의 쓰기 주체는 하나)

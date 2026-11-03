@@ -53,6 +53,8 @@ const SHARED_BY_ALL = (self: CliBase): OwnedPath[] => [
 /** Epic #527 의 표 그대로. 자리를 옮기거나 더할 때 고치는 곳은 여기 하나다. */
 export const CLI_OWNERSHIP: Record<CliBase, ReadonlyArray<OwnedPath>> = {
   claude: [
+    // #953 (ADR-118) — Codex 의 경로 룰 포인터가 `.claude/rules/` 를 가리킬 수 있다. 이 자리를 지우는 `uninstall --cli claude` 는
+    // `AGENTS.md` 재렌더(인라인)와 묶여 있다(`agentsMdRerenderSet`) — 지우는 길을 더하면 그 재렌더도 함께 묶는다
     { path: ".claude/", kind: "recorded", sharedWith: [] },
     { path: HARNESS_ANCHOR_FILE, kind: "anchor", sharedWith: [] },
     { path: "CLAUDE.md", kind: "import-block", sharedWith: [] },

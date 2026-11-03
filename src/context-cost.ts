@@ -152,10 +152,11 @@ export interface ResidentCost {
    */
   rulesInline?: "rendered" | "planned";
   /**
-   * #948 (ADR-117) — `rulesInline` 인데 그중 이만큼은 `contextFile` 밖 `.agents/rules/` 파일이다(경로 룰 포인터가 가리킨다).
-   * `items.rules` 에 들어 있고, `rules` 토큰은 이 파일들의 토큰이다(인라인 몫은 `contextFile` 숫자에 이미 있다).
+   * #948 (ADR-117) · #953 — `rulesInline` 인데 그중 `count` 개는 `contextFile` 밖 룰 폴더(`dir` — `.agents/rules` · `.claude/rules`)의
+   * 파일이다(경로 룰 포인터가 가리킨다). `items.rules` 에 들어 있고, `rules` 토큰은 이 파일들의 토큰이다(인라인 몫은 `contextFile`
+   * 숫자에 이미 있다).
    */
-  rulesOutside?: number;
+  rulesOutside?: { count: number; dir: string };
   /** #615 남은 틈 — `contextFile` 숫자가 무엇을 쟀는지(또는 못 쟀는지) 화면에 붙이는 한 구절. */
   contextNote?: string;
   skillDescriptors: number;
@@ -197,7 +198,7 @@ export function makeResidentCost(base: {
   perSkillDescriptor?: Readonly<Record<string, number>>;
   contextFile?: string;
   rulesInline?: "rendered" | "planned";
-  rulesOutside?: number;
+  rulesOutside?: { count: number; dir: string };
   contextNote?: string;
 }): ResidentCost {
   return {
@@ -457,9 +458,9 @@ export function formatResidentCostLine(
   // "깎으면 안 불린다"로 판단이 다르다. 갈라 보여 주는 이유가 그것이다.
   // #615 남은 틈 — 룰이 앵커 파일 안에 인라인이면 토큰은 그 파일 숫자에 들어 있다(두 번 세지 않는다).
   // #948 — 경로 룰 포인터 판이면 인라인 몫(상시 룰)과 `.agents/rules/` 파일 몫(경로 룰)을 갈라 말한다
-  const outside = r.rulesOutside ?? 0;
+  const outside = r.rulesOutside;
   const rules = r.rulesInline
-    ? `rules ${r.items.rules - outside} inside ${r.contextFile}${r.rulesInline === "planned" ? " (planned count)" : ""}${outside > 0 ? ` + ${outside} in .agents/rules ~${r.rules}` : ""}`
+    ? `rules ${r.items.rules - (outside?.count ?? 0)} inside ${r.contextFile}${r.rulesInline === "planned" ? " (planned count)" : ""}${outside !== undefined && outside.count > 0 ? ` + ${outside.count} in ${outside.dir} ~${r.rules}` : ""}`
     : `rules ${r.items.rules} ~${r.rules}`;
   const note = r.contextNote ? ` ${r.contextNote}` : "";
   const parts = [

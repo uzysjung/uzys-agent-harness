@@ -11,8 +11,9 @@
  *   - OpenCode    → `AGENTS.md` 본문 embed (Codex 와 같은 파일 · 같은 블록). 예외 하나(#944 · ADR-116): Codex 가 없고
  *                   Antigravity 가 `.agents/rules/` 에 이번 룰을 전부 썼으면 `opencode.json` `instructions` 의
  *                   `.agents/rules/*.md` 원소로 그 파일을 읽는다(OpenCode 공식: "combined with your AGENTS.md")
- *   - Codex       → `AGENTS.md` 본문 embed (Codex 는 룰 디렉터리가 없다 — AGENTS.md 계층뿐). 예외 하나(#948 · ADR-117): OpenCode 가
- *                   없고 Antigravity 가 `.agents/rules/` 에 이번 룰을 전부 썼으면 경로 룰(`paths:`)만 그 파일을 가리키는 목록이다
+ *   - Codex       → `AGENTS.md` 본문 embed (Codex 는 룰 디렉터리가 없다 — AGENTS.md 계층뿐). 예외 하나(#948 · ADR-117 · #953 ·
+ *                   ADR-118): OpenCode 가 없고 이번 실행이 이번 룰 전부를 한 룰 폴더(`.agents/rules/` 우선, 아니면 Claude Code 의
+ *                   `.claude/rules/`)에 썼으면 경로 룰(`paths:`)만 그 폴더의 파일을 가리키는 목록이다
  */
 
 import { existsSync, readdirSync, readFileSync } from "node:fs";
@@ -111,16 +112,23 @@ export function ruleHeadings(harnessRoot: string): ReadonlySet<string> {
 export const PATH_RULE_POINTER_LEAD =
   "> 아래 파일을 만들거나 고치기 전에 그 룰을 읽고 따른다 — 본문은 여기 없다.";
 
-/** 경로 룰 한 줄 — 그 룰의 `paths:` 를 ` · ` 로 잇고 Antigravity 가 쓴 파일을 가리킨다(측정한 형식). */
-function pathRulePointerLine(rule: PortedRule): string {
-  return `> - ${rule.paths.map((p) => `\`${p}\``).join(" · ")} → \`.agents/rules/${rule.name}.md\``;
+/**
+ * 경로 룰 포인터가 가리킬 수 있는 룰 폴더(프로젝트 상대) — Antigravity 가 쓰는 `.agents/rules`(#948) · Claude Code 가 쓰는
+ * `.claude/rules`(#953 · ADR-118). 어느 폴더인지는 호출부가 이번 실행의 쓰기 결과로 정한다(`runCliTransforms`).
+ */
+export type PathRuleFolder = ".agents/rules" | ".claude/rules";
+
+/** 경로 룰 한 줄 — 그 룰의 `paths:` 를 ` · ` 로 잇고 그 폴더의 파일을 가리킨다(측정한 형식 — 폴더만 바뀐다). */
+function pathRulePointerLine(rule: PortedRule, folder: PathRuleFolder): string {
+  return `> - ${rule.paths.map((p) => `\`${p}\``).join(" · ")} → \`${folder}/${rule.name}.md\``;
 }
 
-const POINTER_TARGET = /^> - .+ → `\.agents\/rules\/([^`/]+)\.md`$/;
+const POINTER_TARGET = /^> - .+ → `((?:\.agents|\.claude)\/rules\/[^`/]+\.md)`$/;
 
 /**
- * #948 — 이 `AGENTS.md` 본문이 경로 룰 포인터로 가리키는 룰 이름(파일명). update 화면의 상주 비용 줄이 그 룰을 인라인이 아니라
- * `.agents/rules/` 파일로 세는 근거다 — 디스크 바이트로 본다(이번 실행이 그 파일을 안 썼어도 지금 상주하는 것은 그 바이트다).
+ * #948 · #953 — 이 `AGENTS.md` 본문이 경로 룰 포인터로 가리키는 파일(프로젝트 상대 — `.agents/rules/<룰>.md` · `.claude/rules/<룰>.md`).
+ * update 화면의 상주 비용 줄이 그 룰을 인라인이 아니라 그 파일로 세는 근거다 — 디스크 바이트로 본다(이번 실행이 그 파일을 안
+ * 썼어도 지금 상주하는 것은 그 바이트다). 행동 결정에는 쓰지 않는다(ADR-118 — 재렌더는 기록 · 집합으로 정한다).
  */
 export function pathRulePointerTargets(text: string): string[] {
   return text.split("\n").flatMap((l) => POINTER_TARGET.exec(l.replace(/\r$/, ""))?.[1] ?? []);
@@ -136,22 +144,27 @@ export function pathRulePointerTargets(text: string): string[] {
  * #944 — 상시 룰을 먼저, 경로 룰(`paths:`)을 뒤에 잇는다(각 묶음 안은 받은 순서). 이 덩어리는 파일 맨 끝이라 Codex 가
  * 32 KiB 에서 멈추면 뒷부분이 빠진다 — 빠져도 Claude Code 가 지연 로드하는 것과 같은 경로 룰이 빠지게 한다.
  *
- * @param pathRulesViaFiles #948 — 참이면 경로 룰 본문 대신 그 파일(`.agents/rules/<룰>.md`)을 가리키는 목록 하나를 같은 자리(맨 끝)에
- *   둔다. 호출부가 그 파일이 이번 실행에 실재함을 보장할 때만 참이다. 경로 룰이 없으면 거짓일 때와 같은 바이트다.
+ * @param pathRulesViaFiles #948 · #953 — 폴더를 주면 경로 룰 본문 대신 그 폴더의 파일(`<폴더>/<룰>.md`)을 가리키는 목록 하나를 같은
+ *   자리(맨 끝)에 둔다. 호출부가 이번 실행이 그 폴더에 이번 룰 전부를 썼음을 보장할 때만 준다. 경로 룰이 없으면 `false` 일 때와 같은 바이트다.
  */
 export function renderRulesBlock(
   rules: ReadonlyArray<PortedRule>,
-  pathRulesViaFiles = false,
+  pathRulesViaFiles: PathRuleFolder | false = false,
 ): string {
   if (rules.length === 0) return "";
   const always = rules.filter((r) => r.paths.length === 0);
   const path = rules.filter((r) => r.paths.length > 0);
-  const bodies = (pathRulesViaFiles ? always : [...always, ...path]).map((r) =>
+  const bodies = (pathRulesViaFiles !== false ? always : [...always, ...path]).map((r) =>
     r.body.replace(/^#\s+/, "## "),
   );
   const pointers =
-    pathRulesViaFiles && path.length > 0
-      ? [[PATH_RULE_POINTER_LEAD, ...path.map(pathRulePointerLine)].join("\n")]
+    pathRulesViaFiles !== false && path.length > 0
+      ? [
+          [
+            PATH_RULE_POINTER_LEAD,
+            ...path.map((r) => pathRulePointerLine(r, pathRulesViaFiles)),
+          ].join("\n"),
+        ]
       : [];
   return [...bodies, ...pointers].join("\n\n---\n\n");
 }

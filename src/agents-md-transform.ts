@@ -28,7 +28,7 @@ import { ensureDir } from "./fs-ops.js";
 import type { InstallLog } from "./install-log.js";
 import { createOwnedWriter, type OwnedWriteResult, type WriteJournal } from "./owned-write.js";
 import { renderFillScaffold } from "./project-claude-merge.js";
-import { portRules, renderRulesBlock, ruleHeadings } from "./rules-port.js";
+import { type PathRuleFolder, portRules, renderRulesBlock, ruleHeadings } from "./rules-port.js";
 import {
   type AgentsMdWriteResult,
   agentsMdModelFor,
@@ -52,11 +52,12 @@ export interface AgentsMdTransformParams {
    */
   rulesViaInstructions: boolean;
   /**
-   * #948 (ADR-117) — 이번 실행이 Codex 의 경로 룰(`paths:`) 도달을 `.agents/rules/<룰>.md` 로 보장했다(`runCliTransforms` 가 정한다:
-   * Codex ∈ 집합 ∧ OpenCode ∉ 집합 ∧ Antigravity 가 이번 룰을 전부 썼다). 참이고 이 파일이 절 모델이면 경로 룰 본문 대신 그 파일을
-   * 가리키는 목록을 쓴다. **required** — `.agents/rules/` 를 쓰지 않는 경로(`uninstall --cli` 재렌더)는 `false` 를 명시한다.
+   * #948 (ADR-117) · #953 (ADR-118) — 이번 실행이 Codex 의 경로 룰(`paths:`) 도달을 이 폴더의 `<룰>.md` 로 보장했다(`runCliTransforms`
+   * 가 정한다: Codex ∈ 집합 ∧ OpenCode ∉ 집합 ∧ 이번 실행이 이번 룰 전부를 그 폴더에 썼다 — `.agents/rules` 우선, 아니면 `.claude/rules`).
+   * 폴더가 오고 이 파일이 절 모델이면 경로 룰 본문 대신 그 파일을 가리키는 목록을 쓴다. **required** — 룰 폴더를 쓰지 않는 경로
+   * (`uninstall --cli` · `--track` 재렌더)는 `false` 를 명시한다.
    */
-  pathRulesViaFiles: boolean;
+  pathRulesViaFiles: PathRuleFolder | false;
   /** 기준선(install log `externalFiles` + 이 실행의 앞 변환 결과). */
   baseline: ReadonlyMap<string, string>;
   /** `update` · `uninstall --cli` 경로 — 없는 파일은 `installedByRecord` 일 때만 만든다. */
@@ -147,7 +148,7 @@ export function runAgentsMdTransform(params: AgentsMdTransformParams): AgentsMdT
     ),
     harnessRules: renderRulesBlock(
       portRules(harnessRoot, params.rules),
-      params.pathRulesViaFiles && sectionsModel,
+      sectionsModel ? params.pathRulesViaFiles : false,
     ),
     clis,
     rulesViaInstructions: params.rulesViaInstructions && sectionsModel,

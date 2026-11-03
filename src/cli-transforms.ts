@@ -9,7 +9,7 @@
  */
 
 import { existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { join, relative, sep } from "node:path";
 import { keyId } from "./adapters/index.js";
 import { agentsMdClis } from "./agents-md-render.js";
 import {
@@ -43,7 +43,7 @@ import {
 import { type OpencodeTransformReport, runOpencodeTransform } from "./opencode/transform.js";
 import { createOutsideGuard, mergeOutside, type OutsideLink } from "./outside-project.js";
 import type { OwnedWriteResult, WriteJournal } from "./owned-write.js";
-import { portRules } from "./rules-port.js";
+import { type PathRuleFolder, portRules } from "./rules-port.js";
 import { agentsMdModelFor, type SharedRecord, type SharedWriteResult } from "./shared-write.js";
 import { anyTrack } from "./track-match.js";
 import { CLI_BASES, type CliBase, type Track } from "./types.js";
@@ -123,6 +123,12 @@ export interface CliTransformParams {
    * 생략 = `rules` 그대로(update 는 이미 누적 트랙으로 `rules` 를 만든다).
    */
   cumulativeRules?: ReadonlyArray<string>;
+  /**
+   * #953 (ADR-118) — 이번 실행의 하네스 writer 가 **이 변환 앞에서** 판정해 남긴 경로(프로젝트 상대 — install 은 `writer.ledger().writes`,
+   * update 는 `updateHarnessFiles(...).wrote`). Codex 의 경로 룰 포인터가 `.claude/rules/` 를 가리켜도 되는지(이번 룰 전부가 여기 있나)의
+   * 근거다 — 디스크 존재가 아니라 이번 쓰기 결과. 생략 = 빈 집합(그 포인터를 쓰지 않는다 — 인라인).
+   */
+  harnessWrote?: ReadonlySet<string>;
   /**
    * #568 — 이 실행의 하네스 MCP 서버(`renderHarnessMcp`). Codex · OpenCode 가 Claude `.mcp.json` 과 **같은 값**을 받는다 —
    * 호출부가 한 번 렌더해 `.mcp.json` 쓰기와 여기에 함께 넘긴다(#709: 트랙 + 선택, 각자 렌더하면 선택이 갈릴 자리가 생긴다).
@@ -280,20 +286,26 @@ export function adapterExcluded(
 }
 
 /**
- * #944 — Antigravity 변환이 이번 룰을 **전부** `.agents/rules/<룰>.md` 에 썼나(`harnessRuleFiles` — 링크 · 남의 슬롯이라 건너뛴 자리는
- * 없다). 변환이 안 돌았으면 거짓. 원본이 없는 룰 이름은 어느 쪽에도 안 나가므로 세지 않는다(`portRules` 와 같은 거름).
+ * #944 · #953 — 이번 실행이 이번 룰을 **전부** `<folder>/<룰>.md` 에 썼나. `written` = 이번 실행의 쓰기 결과(프로젝트 상대 — 링크 ·
+ * 남의 슬롯이라 건너뛴 자리는 없다). 디스크 존재는 근거가 아니다. 원본이 없는 룰 이름은 어느 쪽에도 안 나가므로 세지 않는다
+ * (`portRules` 와 같은 거름).
  */
 function wroteEveryRule(
   harnessRoot: string,
-  projectDir: string,
-  report: AntigravityTransformReport | null,
+  folder: PathRuleFolder,
+  written: ReadonlySet<string>,
   rules: ReadonlyArray<string>,
 ): boolean {
-  if (report === null) return false;
-  const written = new Set(report.harnessRuleFiles);
-  return portRules(harnessRoot, rules).every((r) =>
-    written.has(join(projectDir, ".agents", "rules", `${r.name}.md`)),
-  );
+  return portRules(harnessRoot, rules).every((r) => written.has(`${folder}/${r.name}.md`));
+}
+
+/** Antigravity 변환이 이번에 쓴 룰 파일(프로젝트 상대). 변환이 안 돌았으면 `null`. */
+function antigravityRuleWrites(
+  projectDir: string,
+  report: AntigravityTransformReport | null,
+): ReadonlySet<string> | null {
+  if (report === null) return null;
+  return new Set(report.harnessRuleFiles.map((f) => relative(projectDir, f).split(sep).join("/")));
 }
 
 function mcpSources(harnessRoot: string): { templateMcpPath: string; trackMapPath: string } {
@@ -462,6 +474,9 @@ export function runCliTransforms(params: CliTransformParams): CliTransformResult
     const beyondThisRun = agentsSet.some((c) => !cli.includes(c));
     const agentsRules =
       beyondThisRun && params.cumulativeRules !== undefined ? params.cumulativeRules : rules;
+    const agRules = antigravityRuleWrites(projectDir, antigravity);
+    const wroteAllTo = (folder: PathRuleFolder, written: ReadonlySet<string> | null): boolean =>
+      written !== null && wroteEveryRule(harnessRoot, folder, written, agentsRules);
     agentsMd = runAgentsMdTransform({
       harnessRoot,
       projectDir,
@@ -474,14 +489,20 @@ export function runCliTransforms(params: CliTransformParams): CliTransformResult
       rulesViaInstructions:
         !agentsSet.includes("codex") &&
         opencode?.rulesViaInstructions === true &&
-        wroteEveryRule(harnessRoot, projectDir, antigravity, agentsRules),
-      // #948 (ADR-117) — Codex 의 경로 룰은 Antigravity 가 이번에 쓴 `.agents/rules/<룰>.md` 를 가리키는 목록으로(실 Codex 포인터
-      // 15/15): ① Codex ∈ 집합 ② OpenCode ∉ 집합(OpenCode 의 포인터 따르기는 재지 않았다) ③ Antigravity 가 이번 룰을 전부 썼다
-      // (④ 절 모델은 변환이 본다). 하나라도 거짓이면 인라인 — 포인터는 이번 실행이 실재를 보장한 파일만 가리킨다
+        wroteAllTo(".agents/rules", agRules),
+      // #948 (ADR-117) · #953 (ADR-118) — Codex 의 경로 룰은 이번 실행이 쓴 룰 파일을 가리키는 목록으로(실 Codex 포인터 15/15 ·
+      // `.claude/rules/` 4/4): ① Codex ∈ 집합 ② OpenCode ∉ 집합(OpenCode 의 포인터 따르기는 재지 않았다) ③a Antigravity 가 이번 룰
+      // 전부를 `.agents/rules/` 에 썼다 → 그 폴더 ③b 아니면 이번 실행의 하네스 writer(Claude Code 단계 — 이 변환 앞)가 이번 룰 전부를
+      // `.claude/rules/` 에 남겼다 → 그 폴더(④ 절 모델은 변환이 본다). 대조 목록은 렌더하는 `agentsRules`(누적일 수 있다). 하나라도
+      // 거짓이면 인라인 — 포인터는 이번 실행이 실재를 보장한 파일만 가리킨다
       pathRulesViaFiles:
-        agentsSet.includes("codex") &&
-        !agentsSet.includes("opencode") &&
-        wroteEveryRule(harnessRoot, projectDir, antigravity, agentsRules),
+        !agentsSet.includes("codex") || agentsSet.includes("opencode")
+          ? false
+          : wroteAllTo(".agents/rules", agRules)
+            ? ".agents/rules"
+            : wroteAllTo(".claude/rules", params.harnessWrote ?? null)
+              ? ".claude/rules"
+              : false,
       baseline,
       refreshOnly,
       // ADR-099 R2 — 기록이 이 파일을 읽는 CLI 를 깔린 것으로 말하면 없어도 만든다(26.164.0 이하 Antigravity 단독 설치본은

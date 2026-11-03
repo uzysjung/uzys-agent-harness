@@ -367,6 +367,32 @@ describe("남은 틈 ① — codex + antigravity update (#948 경로 룰 포인�
   });
 });
 
+// #953 (ADR-118) — 포인터가 `.claude/rules/` 를 가리키면 그 파일을 센다(포인터 줄이 적은 폴더 그대로 — `.agents/rules/` 로 조립하면 없는
+//   파일이라 "밖 룰 0" 이 된다). Claude Code 가 깔린 설치본의 update 줄은 Claude 세션(`.claude/rules/` · `CLAUDE.md`)을 재므로, 같은 디스크를
+//   Codex 표면(`cli: ["codex"]`)으로 재서 이 계산을 직접 본다.
+describe("남은 틈 ① — `.claude/rules/` 포인터를 Codex 표면으로 잴 때 (#953)", () => {
+  it("상시 룰은 'inside AGENTS.md' · 경로 룰은 .claude/rules 파일 수 · 토큰", () => {
+    const { projectDir } = install("tooling", ["claude", "codex"]);
+    const agents = join(projectDir, "AGENTS.md");
+    expect(readFileSync(agents, "utf8"), "대조군: `.claude/rules/` 포인터 판이다").toContain(
+      "→ `.claude/rules/cli-development.md`",
+    );
+    runUpdateMode(projectDir, join(ROOT, "templates"), ROOT, {});
+    const lines: string[] = [];
+    const spec = {
+      ...buildUpdateSpec(projectDir, ["tooling"]),
+      cli: ["codex"] as InstallSpec["cli"],
+    };
+    renderUpdateSummary((m) => lines.push(m), spec, {} as InstallReport);
+    const row = /session-start context cost: [^\n]*/.exec(lines.join("\n"))?.[0] ?? "";
+    const pointed = join(projectDir, ".claude", "rules", "cli-development.md");
+    const planned = residentCostFor(spec).items.rules;
+    expect(row).toContain(
+      `[rules ${planned - 1} inside AGENTS.md + 1 in .claude/rules ~${tokensOf(pointed)} · AGENTS.md 1 ~${tokensOf(agents)} `,
+    );
+  });
+});
+
 describe("남은 틈 ① — antigravity 단독 update", () => {
   it("룰 수·토큰은 .agents/rules 디스크(설치자 룰 포함), 앵커 행은 AGENTS.md 디스크 (ADR-103)", () => {
     const { projectDir } = install("tooling", ["antigravity"]);

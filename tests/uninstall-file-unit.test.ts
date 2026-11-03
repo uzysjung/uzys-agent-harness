@@ -511,7 +511,11 @@ describe("링크 — install 이 따라 쓰지 않는 자리는 따라가지 않
     expect(out.code).toBe(0);
     expect(read(body)).toBe(bodyBefore);
     expect(backupsUnder(".agents")).toEqual([]);
-    expect(log().externalFiles).toEqual(externalBefore);
+    // #953 (ADR-118) — `--cli claude` 도 남는 Codex 몫으로 `AGENTS.md` 를 다시 렌더한다(경로 룰 포인터가 지운 `.claude/rules/` 를 가리키지
+    // 않게 — 인라인). 그 파일의 기준선만 새 판이고 나머지 외부 기록은 그대로다
+    const others = (fs: typeof externalBefore) => (fs ?? []).filter((f) => f.path !== "AGENTS.md");
+    expect(others(log().externalFiles)).toEqual(others(externalBefore));
+    expect(read("AGENTS.md")).not.toContain("→ `.claude/rules/");
     expect(log().skillFiles).toBeUndefined();
     // 설치자가 건 링크는 남는다 — 화면이 이름으로 말한다
     expect(lstatSync(slot).isSymbolicLink()).toBe(true);

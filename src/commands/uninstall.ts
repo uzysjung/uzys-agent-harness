@@ -383,9 +383,7 @@ export function uninstallAction(options: UninstallOptions, deps: UninstallAction
   // 있으면 아무것도 하지 않고 멈춘다 — 앞의 제거만 끝나고 뒤에서 죽으면 반쯤 지운 프로젝트가 남는다.
   const blocked = unwritablePaths({ projectDir, installLog, targetAssets, selectedIds });
   if (blocked.length > 0) {
-    err(status.failure(c.red("ERROR: uninstall cannot write here — nothing was removed:")));
-    for (const p of blocked) err(c.dim(`       · ${p === "." ? "the project folder" : p}`));
-    err(c.dim("       Fix the permissions, then run the same command again."));
+    reportUnwritable(blocked, err);
     exit(1);
     return;
   }
@@ -545,7 +543,12 @@ function unwritablePaths(ctx: {
     for (const f of installLog.rootFiles ?? []) if (f.change === "displaced") parentOf(f.path);
     if (hasRootImport(projectDir)) need.add("CLAUDE.md");
   }
-  return [...need].filter((p) => {
+  return notWritable(projectDir, [...need]);
+}
+
+/** 쓸 수 없는 자리(프로젝트 상대) — 없는 자리는 막지 않는다(만들 것이거나 지울 것이 없다). */
+function notWritable(projectDir: string, paths: ReadonlyArray<string>): string[] {
+  return paths.filter((p) => {
     try {
       accessSync(join(projectDir, p), fsConstants.W_OK);
       return false;
@@ -553,6 +556,13 @@ function unwritablePaths(ctx: {
       return (e as NodeJS.ErrnoException).code !== "ENOENT";
     }
   });
+}
+
+/** #676 — 아무것도 지우지 않고 멈출 때의 화면. 전량 uninstall 과 `uninstall --cli` · `--track` 이 같은 문구를 낸다(#953). */
+function reportUnwritable(blocked: ReadonlyArray<string>, err: (m: string) => void): void {
+  err(status.failure(c.red("ERROR: uninstall cannot write here — nothing was removed:")));
+  for (const p of blocked) err(c.dim(`       · ${p === "." ? "the project folder" : p}`));
+  err(c.dim("       Fix the permissions, then run the same command again."));
 }
 
 /** lstat 기준 존재 — 끊어진 링크도 "있다"(지울 대상이 그 자리에 있다). */
@@ -1140,17 +1150,17 @@ function displayNames(clis: ReadonlyArray<CliBase>): string {
  * `## Session Start` · 안내 문단)은 절이 아니라 문장 단위로 섞여 있어 strip 으로 표현되지 않는다 — 남는 집합으로 다시
  * 렌더하는 것이 그 몫만 빼는 가장 단순한 구현이다(설치자 절은 `mergeAgentsMd` 가 잇는다).
  *
- * 조건: 빠지는 CLI 가 이 파일을 읽었고 · 남는 집합에 읽는 CLI 가 있고(없으면 회수 경로 — #516) · 파일이 하네스 기록에
- * 있다(절 모델 `externalFiles` 또는 블록 모델 `portions`) · 파일이 있다. 기록 밖 파일에는 몫을 새로 더하지 않는다.
+ * 조건: 남는 집합에 읽는 CLI 가 있고(없으면 회수 경로 — #516) · 파일이 하네스 기록에 있다(절 모델 `externalFiles` 또는 블록
+ * 모델 `portions`) · 파일이 있다. 기록 밖 파일에는 몫을 새로 더하지 않는다. #543 — 트랙 제거도 늘 다시 렌더한다(인라인 룰 · 상시
+ * 스킬 안내가 트랙을 따른다). #953 (ADR-118) — 빠지는 CLI 가 Claude Code 여도 다시 렌더한다: Codex 의 경로 룰 포인터가
+ * `.claude/rules/` 를 가리킬 수 있고 이 실행이 그 파일을 지운다. 재렌더는 늘 인라인이라(`pathRulesViaFiles: false`) 지운 파일을
+ * 가리키는 줄이 남지 않는다 — 디스크의 포인터 줄로 가르지 않는다(행동은 기록 · 집합으로 정한다).
  */
 function agentsMdRerenderSet(
-  target: CliBase | null,
   remaining: ReadonlyArray<CliBase>,
   log: InstallLog,
   projectDir: string,
 ): CliBase[] | null {
-  // #543 — 트랙 제거(`null`)는 읽는 CLI 가 있으면 늘 다시 렌더한다(인라인 룰 · 상시 스킬 안내가 트랙을 따른다)
-  if (target !== null && !isAgentsMdCli(target)) return null;
   const set = agentsMdClis(remaining);
   if (set.length === 0) return null;
   const recorded =
@@ -1330,6 +1340,16 @@ function runScopedRemoval(ctx: RemoveCliCtx, io: RemoveCliIo, plan: ScopedRemova
     "",
   ];
   for (const line of header) io.log(line);
+  // #953 (ADR-118) — 아래 재렌더가 예정된 실행은 **지우기 전에** `AGENTS.md` 를 쓸 수 있는지 본다(#676 과 같은 검사 · 같은 문구). 지운 뒤
+  // 재렌더에서 죽으면 그 파일의 포인터가 방금 지운 룰 파일을 가리킨 채 남는다(Codex 가 경로 룰을 0번 받는다)
+  if (!preview && plan.rerenderSet !== null) {
+    const blocked = notWritable(projectDir, [AGENTS_MD]);
+    if (blocked.length > 0) {
+      reportUnwritable(blocked, io.err);
+      io.exit(1);
+      return;
+    }
+  }
   // 전량 경로와 같은 함수 — 범위 안에 기록된 하네스 파일만 하나씩(#746). 설치자 파일은 제자리에 둔다. 미리보기도 같은 판정이다
   const done = removeHarnessFiles(installLog, projectDir, plan.scope, {
     rm: preview ? () => {} : io.rm,
@@ -1406,7 +1426,7 @@ function removeCliAction(ctx: RemoveCliCtx, io: RemoveCliIo): void {
       ...keptForRemainingLines(plan, preview),
       ...assetsLeftLines(installLog, projectDir, plan.scope),
     ],
-    rerenderSet: agentsMdRerenderSet(target, remaining, installLog, projectDir),
+    rerenderSet: agentsMdRerenderSet(remaining, installLog, projectDir),
     settle: (done) => settleCliLog(ctx, target, remaining, done, done.anchor.removed),
   });
 }
@@ -1434,7 +1454,7 @@ function removeTrackAction(ctx: RemoveCliCtx, io: RemoveCliIo): void {
       preview
         ? trackNotes(ctx, removal, done, false).map((l) => `  ○ ${l}`)
         : trackNotes(ctx, removal, done, true),
-    rerenderSet: agentsMdRerenderSet(null, installedClis(installLog), installLog, projectDir),
+    rerenderSet: agentsMdRerenderSet(installedClis(installLog), installLog, projectDir),
     settle: (done) => settleTrackLog(ctx, target, removal.remaining, done),
   });
 }

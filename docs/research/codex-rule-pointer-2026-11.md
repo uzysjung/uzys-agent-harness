@@ -75,6 +75,20 @@
 | 덤으로 고치기 | **3/3** |
 | 새로 만들기 | **1/1** |
 
+## 4차 — 포인터가 `.claude/rules/` 를 가리킬 때 (Claude Code + Codex 설치본)
+
+- 질문: Codex 가 다른 도구(Claude Code)의 폴더 `.claude/rules/` 안 파일도 포인터를 따라 읽는가 — Claude Code + Codex 설치에는 그 파일이 이미 있다.
+- 방법: main(v26.182.0)으로 컨테이너 안에서 `install --track ssr-nextjs --cli claude --cli codex`(`install-claude-codex-in-docker.sh`) → 렌더된 인라인 `## UI Components` 절을
+  측정한 형식의 포인터 한 줄(`**/*.tsx` · `**/*.jsx` → `.claude/rules/ui-components.md`)로 손으로 바꿨다. 가리킨 파일은 하네스가 Claude Code 용으로 쓴
+  실제 파일(`paths:` frontmatter 포함). 실행 · 판정은 3차와 같다(`run-e2e.sh`, 전역 설정 없는 `CODEX_HOME`, xhigh).
+
+| 작업 | `.claude/rules/ui-components.md` 를 `.tsx` 쓰기 전에 읽음 |
+|---|---|
+| 덤으로 고치기 | **3/3** |
+| 새로 만들기 | **1/1** |
+
+(첫 시도 4회는 측정용 `CODEX_HOME` 에 인증 링크를 다시 만들지 않아 401 로 끝났다 — 측정에서 뺐다.)
+
 ## 판단에 쓰는 법
 
 - **경로가 정해진 룰**(`paths:` — `cli-development` · `ui-components` · `htmx-*-ui`)을 Codex 조합에서 조건부 포인터로 바꾸는 근거가 된다(1·2차 15/15, 덤으로 고치기 · medium 포함). 스킬(C)도 5/5 였다. 이 룰들은 Claude Code 에서도 "그 파일을 고칠 때만 읽는다"로 쓰이고, #944 조합의 초과 바이트가 바로 이 룰들이다.

@@ -672,6 +672,9 @@ function runInstallStages(
       ...manifestSpec,
       tracks: [...new Set([...(previousLog?.spec.tracks ?? []).filter(isTrack), ...spec.tracks])],
     }).filter((r) => !isBaselineExcluded(`.claude/rules/${r}.md`, baselineExcluded)),
+    // #953 (ADR-118) — 위 Claude Code 단계가 이번에 판정해 남긴 경로(같은 writer 의 원장). Codex 의 경로 룰 포인터가 `.claude/rules/`
+    // 를 가리켜도 되는지의 근거다 — claude 를 안 고른 실행은 거기 룰이 없어 인라인이다
+    harnessWrote: new Set(writer.ledger().writes.map((w) => w.path)),
     // #568 — Codex · OpenCode 의 MCP 서버는 `.mcp.json` 에 쓴 것과 같은 값이다.
     mcp: harnessMcp,
     previousExternal: previousLog?.externalFiles ?? [],

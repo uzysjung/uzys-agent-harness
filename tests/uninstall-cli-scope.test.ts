@@ -11,6 +11,7 @@ import {
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { RULES_BLOCK } from "../src/agents-md-merge.js";
 import { uninstallAction } from "../src/commands/uninstall.js";
 import { hashContent, installedClis, readInstallLog, writeInstallLog } from "../src/install-log.js";
 import { runInstall } from "../src/installer.js";
@@ -209,9 +210,13 @@ describe("#528 uninstall --cli", () => {
     expect(backupsAfterUninstall).toHaveLength(1);
 
     update();
-    // 음성 대조 — uninstall 이 쓴 바이트가 update 가 낼 바이트와 같다(같은 입력): 새 백업 0 · 파일 그대로
+    // 음성 대조 — uninstall 이 쓴 바이트가 update 가 낼 바이트와 같다(같은 입력): 새 백업 0 · 룰 블록 앞은 그대로. 룰 블록만 다르다 —
+    // 재렌더는 경로 룰을 늘 인라인으로 쓰고(`.claude/rules/` 를 이번에 쓰지 않는다), Claude Code + Codex 의 update 는 그 폴더를 가리키는
+    // 포인터로 되돌린다(ADR-116 이 정정한 "다음 update 와 같은 바이트" 의 같은 부류 · ADR-118)
     expect(agentsBackups()).toEqual(backupsAfterUninstall);
-    expect(agents()).toBe(after);
+    const head = (t: string): string => t.slice(0, t.indexOf(RULES_BLOCK.start));
+    expect(head(agents())).toBe(head(after));
+    expect(agents()).toContain("→ `.claude/rules/");
   });
 
   it("--cli codex: opencode 가 남으면 ## Session Start 가 빠지고 제목은 OpenCode — 설치자 문장 그대로 (C-T4)", () => {
