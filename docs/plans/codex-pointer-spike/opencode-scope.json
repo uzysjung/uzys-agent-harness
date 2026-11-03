@@ -1,0 +1,47 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "permissions": [
+    {
+      "action": "shell",
+      "resource": "*",
+      "effect": "deny"
+    },
+    {
+      "action": "execute",
+      "resource": "*",
+      "effect": "deny"
+    },
+    {
+      "action": "webfetch",
+      "resource": "*",
+      "effect": "deny"
+    },
+    {
+      "action": "websearch",
+      "resource": "*",
+      "effect": "deny"
+    },
+    {
+      "action": "subagent",
+      "resource": "*",
+      "effect": "deny"
+    },
+    {
+      "action": "external_directory",
+      "resource": "*",
+      "effect": "deny"
+    }
+  ],
+  "agent": {
+    "build": {
+      "tools": {
+        "bash": false,
+        "shell": false,
+        "execute": false,
+        "webfetch": false,
+        "websearch": false,
+        "task": false
+      }
+    }
+  }
+}

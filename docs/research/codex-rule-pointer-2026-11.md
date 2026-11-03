@@ -63,7 +63,7 @@
 - 포인터 8회 모두 **`.tsx` 를 쓰기 전에** 룰 파일을 읽었다(실행 기록의 순서 READ → WRITE_TSX). 원래 일(`Math.floor` 로 내림)도 전부 했다.
 - 1차와 합치면 포인터 **15/15**(끝까지 간 실행 14), 인라인 6/6, 룰 없음 0/4.
 
-남는 한계: 모델 하나(`gpt-6-astra`) · 작업 종류 둘 · 실행당 짧은 세션. OpenCode 의 포인터 따르기는 재지 않았다.
+남는 한계: 모델 하나(`gpt-6-astra`) · 작업 종류 둘 · 실행당 짧은 세션. OpenCode 의 포인터 따르기는 5차에서 쟀다.
 
 ## 3차 — 실제 하네스 설치본 (#948 구현 브랜치 6e7ac63)
 
@@ -88,6 +88,27 @@
 | 새로 만들기 | **1/1** |
 
 (첫 시도 4회는 측정용 `CODEX_HOME` 에 인증 링크를 다시 만들지 않아 401 로 끝났다 — 측정에서 뺐다.)
+
+## 5차 — OpenCode 도 같은 포인터를 따르는가 (OpenCode 2.2.5, 4 CLI 설치본)
+
+- 질문: OpenCode 가 섞인 설치(지금은 늘 인라인)에도 같은 경로 룰 포인터를 쓸 수 있는가.
+- 설치본: main(v26.183.0)으로 컨테이너 안에서 `install --track ssr-nextjs --cli claude --cli codex --cli opencode --cli antigravity` → 3·4차의 가짜
+  Next.js 파일을 얹고 `AGENTS.md` 의 인라인 `## UI Components` 절을 측정한 형식의 포인터 한 줄로 바꿨다 — 대상 폴더 둘(`.claude/rules/` ·
+  `.agents/rules/`, 둘 다 하네스가 쓴 실제 파일) · 대조군은 그 절을 지우기만(룰 없음). `opencode.json` 은 하네스 판에서 `mcp` 키만 뺐다.
+- 실행: OpenCode 2.2.5 `run --standalone --auto --format json -m openai/gpt-6-astra#xhigh`, 호스트에서 **측정 폴더 안으로만**(사용자 결정 —
+  Docker 대신 범위 제한): 셸 · 코드 실행 · 웹 · 하위 에이전트를 끄고 폴더 밖 접근을 거부(`opencode-scope.json`, 네 가지 시도 프롬프트로
+  거부를 먼저 확인), 사용자 전역 설정 · 개인 지시문 · 외부 스킬 · 세션 DB 를 쓰지 않는다(`env-oc.sh`). 판정은 3·4차와 같은 읽기 순서
+  (`analyze-oc.py`), 작업 문장도 같다.
+
+| 조건 | 덤으로 고치기 | 새로 만들기 |
+|---|---|---|
+| 포인터 → `.claude/rules/ui-components.md` | 룰을 `.tsx` 쓰기 전에 읽음 **3/3** | **1/1** |
+| 포인터 → `.agents/rules/ui-components.md` | **2/2** | — |
+| 룰 없음(대조군) | 그 파일을 읽지 않고 `.tsx` 를 고침 **0/1** | **0/1** |
+
+- 범위를 막기 전의 첫 실행 1회(셸 · 웹이 열려 있었다)도 읽은 뒤 고쳤다(`claude-incidental-1`) — 위 표에는 넣지 않았다. 서버 기동 실패 1회는
+  다시 돌렸다(`none-create-1`). 원자료 요약 = `results-opencode.tsv`.
+- 남는 한계: 모델 하나 · 강도 하나(Codex 측정과 같은 `gpt-6-astra` xhigh) · 셸을 끈 환경(설치자 환경은 셸이 열려 있다 — 열린 1회도 읽었다).
 
 ## 판단에 쓰는 법
 

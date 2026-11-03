@@ -1,0 +1,11 @@
+run	verdict	read_at	tsx_at	rule_path	calls	denied	errors
+agents-incidental-1	READ→TSX	11	19	.agents/rules/ui-components.md	23	0	
+agents-incidental-2	READ→TSX	9	20	.agents/rules/ui-components.md	26	0	
+claude-create-1	READ→TSX	1	22	.claude/rules/ui-components.md	24	0	
+claude-incidental-1	READ→TSX	7	27	.claude/rules/ui-components.md	37	0	
+claude-incidental-2	READ→TSX	7	23	.claude/rules/ui-components.md	25	0	
+claude-incidental-3	READ→TSX	7	18	.claude/rules/ui-components.md	20	0	
+claude-incidental-4	READ→TSX	13	24	.claude/rules/ui-components.md	26	0	
+none-create-1	NO-READ (no tsx)	-	-	-	1	0	{"type": "unknown", "message": "Standalone server exited before reporting readin
+none-create-2	NO-READ	-	17	-	19	0	
+none-incidental-1	NO-READ	-	13	-	15	0	
