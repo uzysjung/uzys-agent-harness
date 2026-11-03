@@ -29,7 +29,12 @@ import type { InstallLog } from "./install-log.js";
 import { createOwnedWriter, type OwnedWriteResult, type WriteJournal } from "./owned-write.js";
 import { renderFillScaffold } from "./project-claude-merge.js";
 import { portRules, renderRulesBlock, ruleHeadings } from "./rules-port.js";
-import { type AgentsMdWriteResult, type SharedRecord, writeAgentsMd } from "./shared-write.js";
+import {
+  type AgentsMdWriteResult,
+  agentsMdModelFor,
+  type SharedRecord,
+  writeAgentsMd,
+} from "./shared-write.js";
 
 export interface AgentsMdTransformParams {
   harnessRoot: string;
@@ -42,7 +47,7 @@ export interface AgentsMdTransformParams {
   rules: ReadonlyArray<string>;
   /**
    * #944 (ADR-116) — 이번 실행이 OpenCode 의 룰 도달을 `opencode.json` `instructions` 로 보장했다(`runCliTransforms` 가 쓴 결과로
-   * 정한다). 참이고 Codex 가 집합에 없으면 룰 본문 대신 위치 안내를 쓴다. **required** — `opencode.json` 을 쓰지 않는 경로
+   * 정한다). 참이고 Codex 가 집합에 없고 이 파일이 절 모델이면(R2-B1) 룰 본문 대신 위치 안내를 쓴다. **required** — `opencode.json` 을 쓰지 않는 경로
    * (`uninstall --cli` 재렌더)는 `false` 를 명시한다: 보장하지 못한 채 안내만 쓰면 OpenCode 가 룰을 0번 받는다.
    */
   rulesViaInstructions: boolean;
@@ -133,7 +138,10 @@ export function runAgentsMdTransform(params: AgentsMdTransformParams): AgentsMdT
     ),
     harnessRules: renderRulesBlock(portRules(harnessRoot, params.rules)),
     clis,
-    rulesViaInstructions: params.rulesViaInstructions,
+    // #944 R2-B1 — 위치 안내는 절 모델에만. 첫 접촉 블록은 늘 인라인이다 — 설치자가 블록을 고치면 굳어서, 굳은 위치 안내는 CLI
+    // 집합이 바뀐 뒤(Antigravity 가 빠지거나 Codex 가 들어오면) 가리킬 룰이 없다
+    rulesViaInstructions:
+      params.rulesViaInstructions && agentsMdModelFor(projectDir, baseline, shared) === "sections",
   });
   const agentsMd = writeAgentsMd({
     projectDir,

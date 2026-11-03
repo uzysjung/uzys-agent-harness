@@ -92,7 +92,8 @@ Codex · OpenCode · Antigravity 는 **같은 `AGENTS.md` 한 파일을 씁니�
 그것이 필요한 도구가 깔려 있을 때만 들어갑니다(Antigravity 는 룰을 `.agents/rules/` 에서 읽습니다). Codex 가 섞이면 룰
 본문이 그 절에 들어가고, Codex 없이 OpenCode 와 Antigravity 가 함께 깔리면 그 절에는 룰이 어디 있는지 알리는 한 문단만
 들어갑니다 — 이때 OpenCode 는 하네스가 `opencode.json` 의 `instructions` 에 더한 원소 `.agents/rules/*.md` 로 Antigravity
-와 같은 파일을 읽어, 두 도구가 룰을 한 번씩만 읽습니다. 여러분이 덧붙이는 절은 룰 절 **위에** 두세요 — 룰 절이 맨 끝이라
+와 같은 파일을 읽어, 두 도구가 룰을 한 번씩만 읽습니다(하네스가 만든 `AGENTS.md` 일 때 — 설치 전부터 있던 여러분의 `AGENTS.md`
+끝에 붙는 하네스 블록은 늘 룰 본문을 담습니다). 여러분이 덧붙이는 절은 룰 절 **위에** 두세요 — 룰 절이 맨 끝이라
 Antigravity 가 파일 하나에서 24,000 바이트를 넘는 부분을 잘라도 잘리는 것은 룰 사본이고, 룰 뒤에 적은 절은 다음 `update`
 가 그 자리로 옮깁니다.
 v26.164.0 까지 Antigravity 가 읽던 `.agents/rules/uzys-harness.md` 는 은퇴했습니다 — 첫 `update` 가 그 파일에

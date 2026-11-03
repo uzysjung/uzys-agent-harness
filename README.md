@@ -142,7 +142,7 @@ What each tool gets:
 |---|---|---|---|---|---|
 | Claude Code | ✓ | ✓ | ✓ | ✓ | ✓ |
 | Codex | ✓ (in `AGENTS.md`) | ✓ | session start only | — | — |
-| OpenCode | ✓ (in `AGENTS.md`; with Antigravity and no Codex, from `.agents/rules/` via `opencode.json`) | ✓ | — | — | — |
+| OpenCode | ✓ (in `AGENTS.md`; with Antigravity and no Codex, from `.agents/rules/` via `opencode.json` when the harness created `AGENTS.md`) | ✓ | — | — | — |
 | Antigravity | ✓ | ✓ | — | — | — |
 
 Plugins are a Claude Code feature, so only Claude Code gets them. Rules and skills come from the same source, so they say the same thing in every tool. What a tool can block on its own differs.

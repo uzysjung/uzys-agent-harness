@@ -522,19 +522,53 @@ describe("D3 · D4 — 실행마다 OpenCode 가 룰을 받는 수", () => {
     expect(reach().inline).toBe(true);
   });
 
-  it("F2 — 위치 안내로 얼어붙은 첫 접촉 블록 + antigravity 를 안 고른 실행(install --cli opencode) → 원소가 남아 OpenCode 는 0번이 아니다", () => {
+  /**
+   * #944 R2-B1 — 첫 접촉 블록(설치자가 먼저 가진 `AGENTS.md`)은 늘 인라인이고 하네스 룰 원소도 없다. 설치자가 블록 안을 고쳐 블록이
+   * 굳어도 굳은 것은 인라인 룰이라, 그 뒤 CLI 집합이 바뀌어도(Antigravity 가 빠짐 · Codex 가 들어옴 · OpenCode 만 다시 설치) Codex ·
+   * OpenCode 가 룰을 0번 받지 않는다 — update 를 거듭해도. `installerElement` = 설치자가 `instructions` 에 같은 원소를 먼저 둔 경우
+   * (원소가 디스크에 있어도 블록은 위치 안내가 되지 않는다).
+   */
+  const FROZEN_FLOWS: Record<string, () => void> = {
+    "uninstall --cli antigravity": () => uninstall({ cli: "antigravity" }),
+    "install --cli codex": () => install(["codex"]),
+    "install --cli opencode": () => install(["opencode"]),
+  };
+  const FROZEN_CASES = Object.keys(FROZEN_FLOWS).flatMap((flow) =>
+    [false, true].map((installerElement) => [flow, installerElement] as const),
+  );
+
+  it.each(
+    FROZEN_CASES,
+  )("R2-B1 — 굳은 첫 접촉 블록 + %s (설치자 원소 %s) → Codex · OpenCode 가 0번이 아니다 · update 두 번 뒤에도", (flow, installerElement) => {
     put("AGENTS.md", "# Mine\n\nINSTALLER-OWN — 설치자가 먼저 쓴 파일.\n");
+    if (installerElement) {
+      put("opencode.json", `${JSON.stringify({ instructions: [RULES_INSTRUCTION] }, null, 2)}\n`);
+    }
     install(["opencode", "antigravity"]);
     const first = read("AGENTS.md");
     expect(first, "픽스처 자기검증 — 첫 접촉 블록").toContain(AGENTS_BLOCK.start);
-    expect(pointer(), "픽스처 자기검증 — 블록이 위치 안내로 쓰였다").toBe(true);
-    // 설치자가 블록 안에 한 줄 — 하네스는 그 블록을 더는 바꾸지 않는다(얼어붙음)
+    expect(pointer(), "블록 모델은 위치 안내를 쓰지 않는다").toBe(false);
+    // 블록 모델에는 하네스 원소가 없다 — OpenCode 는 인라인으로 한 번(설치자 원소가 있으면 그것까지 두 번)
+    expect(recordedElement()).toBe(false);
+    expect(reach()).toEqual({
+      inline: true,
+      glob: installerElement,
+      times: installerElement ? 2 : 1,
+    });
+    // 설치자가 블록 안에 한 줄 — 하네스는 그 블록을 더는 바꾸지 않는다(굳음)
     put("AGENTS.md", first.replace(`${AGENTS_BLOCK.start}\n`, `${AGENTS_BLOCK.start}\nMY-LINE\n`));
-    install(["opencode"]);
-    expect(read("AGENTS.md"), "픽스처 자기검증 — 블록은 그대로(위치 안내)").toContain("MY-LINE");
-    expect(pointer()).toBe(true);
-    expect(instructions()).toContain(RULES_INSTRUCTION);
-    expect(reach()).toEqual({ inline: false, glob: true, times: 1 });
+    const run = FROZEN_FLOWS[flow];
+    if (run === undefined) throw new Error(flow);
+    for (const [step, act] of [
+      [flow, run],
+      ["update 1", update],
+      ["update 2", update],
+    ] as const) {
+      act();
+      expect(read("AGENTS.md"), `${step} — 픽스처 자기검증: 블록은 굳은 채`).toContain("MY-LINE");
+      // Codex 는 `AGENTS.md` 만 읽는다 — 인라인이면 Codex · OpenCode 둘 다 룰이 있다
+      expect(reach().inline, `${step} — 인라인 룰`).toBe(true);
+    }
   });
 
   /**

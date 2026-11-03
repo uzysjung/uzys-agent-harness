@@ -110,7 +110,7 @@ TypeScript + tsup 번들 · Node 20+ · vitest · biome. 배포 = npm `@uzysjung
    `.claude/rules/` 는 여전히 전부 무조건 상주다. **지연 로드는 Claude Code 한정 효과**다:
    설치본에 OpenCode 가 섞여 있으면 룰이 `AGENTS.md` **맨 끝 `## Harness Rules` 에 인라인으로 박혀**
    나가므로 `paths:` 가 없는 것과 같아 매 세션 상주한다(`src/rules-port.ts` renderRulesBlock).
-   예외 하나 — Codex 가 없고 그 실행이 Antigravity 의 `.agents/rules/` 를 다 썼으면 OpenCode 는
+   예외 하나 — Codex 가 없고 `AGENTS.md` 가 절 모델이고 그 실행이 `.agents/rules/` 를 다 썼으면 OpenCode 는
    `opencode.json` `instructions` 의 `.agents/rules/*.md` 로 그 파일을 읽는다(여전히 상주 ·
    `AGENTS.md` 에는 위치 안내만). OpenCode 단독이면 `instructions` 에 `rules/` 가 없다 —
    `tests/resident-reach-4cli.test.ts` 가 문다. 경위 = #300 · #338 · ADR-116.

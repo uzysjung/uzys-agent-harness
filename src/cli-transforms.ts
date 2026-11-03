@@ -44,7 +44,7 @@ import { type OpencodeTransformReport, runOpencodeTransform } from "./opencode/t
 import { createOutsideGuard, mergeOutside, type OutsideLink } from "./outside-project.js";
 import type { OwnedWriteResult, WriteJournal } from "./owned-write.js";
 import { portRules } from "./rules-port.js";
-import type { SharedRecord, SharedWriteResult } from "./shared-write.js";
+import { agentsMdModelFor, type SharedRecord, type SharedWriteResult } from "./shared-write.js";
 import { anyTrack } from "./track-match.js";
 import { CLI_BASES, type CliBase, type Track } from "./types.js";
 
@@ -422,11 +422,15 @@ export function runCliTransforms(params: CliTransformParams): CliTransformResult
       baseline,
       refreshOnly,
       shared,
-      // #944 (ADR-116) — Antigravity 가 집합(이번 선택 ∪ 기록)에 있고 Codex 가 `AGENTS.md` 를 읽지 않을 때 원소를 둔다
-      // (`renderedKeyIds` 와 같은 조건). Antigravity 를 안 고른 부분 실행도 원소를 걷지 않는다 — 걷으면 얼어붙은 첫 접촉 블록의
-      // 위치 안내만 남아 OpenCode 가 룰을 0번 받는다(F2). 그 실행의 `AGENTS.md` 는 D2 ③ 으로 인라인이라 두 번 읽고, 다음 update 가
-      // 포인터로 모은다. 쓰기 주체는 이 변환 하나다 — `AGENTS.md` 쪽은 결과(`rulesViaInstructions`)만 읽는다
-      rulesInstruction: agentsSet.includes("antigravity") && !agentsSet.includes("codex"),
+      // #944 (ADR-116) — Antigravity 가 집합(이번 선택 ∪ 기록)에 있고 Codex 가 `AGENTS.md` 를 읽지 않고 그 파일이 절 모델일 때
+      // 원소를 둔다. Antigravity 를 안 고른 부분 실행도 원소를 걷지 않는다(F2 — 그 실행의 `AGENTS.md` 는 D2 ③ 으로 인라인이라 두 번
+      // 읽고, 다음 update 가 포인터로 모은다). 첫 접촉 블록(`block`)은 늘 인라인이라(R2-B1) 원소를 두면 OpenCode 가 늘 두 번 읽는다 —
+      // 모델은 `writeAgentsMd` 와 같은 판정이고 그 파일은 앞의 변환이 쓰지 않는다. 쓰기 주체는 이 변환 하나다 — `AGENTS.md` 쪽은
+      // 결과(`rulesViaInstructions`)만 읽는다
+      rulesInstruction:
+        agentsSet.includes("antigravity") &&
+        !agentsSet.includes("codex") &&
+        agentsMdModelFor(projectDir, baseline, shared) === "sections",
       ...writerParams,
     });
     absorb(opencode);
