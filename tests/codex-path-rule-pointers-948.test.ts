@@ -196,13 +196,13 @@ describe("D1 · §3 — 실행마다 Codex 가 경로 룰을 받는 수", () => 
     everyPathRuleReachesCodex("update");
   });
 
-  it("§3 4행 — codex+antigravity 에 install --cli opencode → 인라인(OpenCode 의 포인터 따르기는 재지 않았다) · update 도 인라인", () => {
+  it("§3 4행 — codex+antigravity 에 install --cli opencode → 인라인(Antigravity 미실행) · update 에 포인터(#960 · ADR-119 — OpenCode 가 섞여도)", () => {
     install(["codex", "antigravity"]);
     install(["opencode"]);
     expect(pointer()).toBe(false);
     everyPathRuleReachesCodex("install --cli opencode");
     update();
-    expect(pointer()).toBe(false);
+    expect(pointer()).toBe(true);
     everyPathRuleReachesCodex("update");
   });
 

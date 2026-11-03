@@ -7,6 +7,7 @@
 - Amends: ADR-117 — 결정 1 의 ③("Antigravity 가 이번 룰 전부를 `.agents/rules/` 에 썼다")을 "이번 실행이 이번 룰 전부를 한 룰 폴더에 썼다"
   로 넓힌다 · `uninstall --cli` 재렌더 대상에 Claude Code 를 더한다
 - 설계 = `docs/plans/953-design.md`(설계 검증 반영본) · 근거 = `docs/research/codex-rule-pointer-2026-11.md` §4차
+- Amended by: ADR-119 (#960) — 조건 ②("OpenCode ∉ 집합")를 걷는다 — claude + opencode 도 `.claude/rules/` 포인터
 
 ## Context
 

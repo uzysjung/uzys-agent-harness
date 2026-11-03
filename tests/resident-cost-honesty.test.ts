@@ -367,6 +367,24 @@ describe("남은 틈 ① — codex + antigravity update (#948 경로 룰 포인�
   });
 });
 
+// #960 (ADR-119) — OpenCode 가 섞여도(Codex + OpenCode + Antigravity) 경로 룰은 `.agents/rules/` 포인터다 — 같은 셈: 상시 룰은 그 파일 안,
+//   경로 룰은 가리키는 파일 수 · 토큰.
+describe("남은 틈 ① — codex + opencode + antigravity update (#960 경로 룰 포인터)", () => {
+  it("상시 룰은 'inside AGENTS.md' · 경로 룰은 .agents/rules 파일 수 · 토큰", () => {
+    const { projectDir, spec } = install("tooling", ["codex", "opencode", "antigravity"]);
+    const agents = join(projectDir, "AGENTS.md");
+    expect(readFileSync(agents, "utf8"), "대조군: 경로 룰 포인터 판이다").toContain(
+      "→ `.agents/rules/cli-development.md`",
+    );
+    const row = updateRow(projectDir);
+    const planned = residentCostFor(spec).items.rules;
+    const pointed = join(projectDir, ".agents", "rules", "cli-development.md");
+    expect(row).toContain(
+      `[rules ${planned - 1} inside AGENTS.md + 1 in .agents/rules ~${tokensOf(pointed)} · AGENTS.md 1 ~${tokensOf(agents)} `,
+    );
+  });
+});
+
 // #953 (ADR-118) — 포인터가 `.claude/rules/` 를 가리키면 그 파일을 센다(포인터 줄이 적은 폴더 그대로 — `.agents/rules/` 로 조립하면 없는
 //   파일이라 "밖 룰 0" 이 된다). Claude Code 가 깔린 설치본의 update 줄은 Claude 세션(`.claude/rules/` · `CLAUDE.md`)을 재므로, 같은 디스크를
 //   Codex 표면(`cli: ["codex"]`)으로 재서 이 계산을 직접 본다.

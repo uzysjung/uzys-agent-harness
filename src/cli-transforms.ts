@@ -490,13 +490,14 @@ export function runCliTransforms(params: CliTransformParams): CliTransformResult
         !agentsSet.includes("codex") &&
         opencode?.rulesViaInstructions === true &&
         wroteAllTo(".agents/rules", agRules),
-      // #948 (ADR-117) · #953 (ADR-118) — Codex 의 경로 룰은 이번 실행이 쓴 룰 파일을 가리키는 목록으로(실 Codex 포인터 15/15 ·
-      // `.claude/rules/` 4/4): ① Codex ∈ 집합 ② OpenCode ∉ 집합(OpenCode 의 포인터 따르기는 재지 않았다) ③a Antigravity 가 이번 룰
-      // 전부를 `.agents/rules/` 에 썼다 → 그 폴더 ③b 아니면 이번 실행의 하네스 writer(Claude Code 단계 — 이 변환 앞)가 이번 룰 전부를
-      // `.claude/rules/` 에 남겼다 → 그 폴더(④ 절 모델은 변환이 본다). 대조 목록은 렌더하는 `agentsRules`(누적일 수 있다). 하나라도
-      // 거짓이면 인라인 — 포인터는 이번 실행이 실재를 보장한 파일만 가리킨다
+      // #948 (ADR-117) · #953 (ADR-118) · #960 (ADR-119) — 인라인 룰을 읽는 CLI(Codex · OpenCode)의 경로 룰은 이번 실행이 쓴 룰
+      // 파일을 가리키는 목록으로(실 Codex 15/15 · `.claude/rules/` 4/4 · 실 OpenCode 6/6): ① Codex 또는 OpenCode ∈ 집합 ③a Antigravity
+      // 가 이번 룰 전부를 `.agents/rules/` 에 썼다 → 그 폴더 ③b 아니면 이번 실행의 하네스 writer(Claude Code 단계 — 이 변환 앞)가 이번
+      // 룰 전부를 `.claude/rules/` 에 남겼다 → 그 폴더(④ 절 모델은 변환이 본다). 대조 목록은 렌더하는 `agentsRules`(누적일 수 있다).
+      // 하나라도 거짓이면 인라인 — 포인터는 이번 실행이 실재를 보장한 파일만 가리킨다. 위 위치 안내(ADR-116)가 서면 렌더가 그쪽을
+      // 쓴다(룰 전부가 이미 파일로 간다 — 이 값은 쓰이지 않는다)
       pathRulesViaFiles:
-        !agentsSet.includes("codex") || agentsSet.includes("opencode")
+        !agentsSet.includes("codex") && !agentsSet.includes("opencode")
           ? false
           : wroteAllTo(".agents/rules", agRules)
             ? ".agents/rules"

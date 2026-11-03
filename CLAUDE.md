@@ -110,12 +110,12 @@ TypeScript + tsup 번들 · Node 20+ · vitest · biome. 배포 = npm `@uzysjung
    `.claude/rules/` 는 여전히 전부 무조건 상주다. **지연 로드는 Claude Code 한정 효과**다:
    설치본에 OpenCode 가 섞여 있으면 룰이 `AGENTS.md` **맨 끝 `## Harness Rules` 에 인라인으로 박혀**
    나가므로 `paths:` 가 없는 것과 같아 매 세션 상주한다(`src/rules-port.ts` renderRulesBlock).
-   예외 하나 — Codex 가 없고 `AGENTS.md` 가 절 모델이고 그 실행이 `.agents/rules/` 를 다 썼으면 OpenCode 는
+   예외 둘 — ① Codex 가 없고 `AGENTS.md` 가 절 모델이고 그 실행이 `.agents/rules/` 를 다 썼으면 OpenCode 는
    `opencode.json` `instructions` 의 `.agents/rules/*.md` 로 그 파일을 읽는다(여전히 상주 ·
    `AGENTS.md` 에는 위치 안내만). OpenCode 단독이면 `instructions` 에 `rules/` 가 없다 —
-   `tests/resident-reach-4cli.test.ts` 가 문다. 경위 = #300 · #338 · ADR-116. Codex + Antigravity(OpenCode
-   없음)면 경로 룰만 `.agents/rules/<룰>.md` 를 가리키는 줄이고(ADR-117), Antigravity 없이 Claude Code 와 함께면
-   `.claude/rules/<룰>.md` 를 가리킨다(ADR-118).
+   `tests/resident-reach-4cli.test.ts` 가 문다. 경위 = #300 · #338 · ADR-116. ② 그 밖에 그 실행이 룰 전부를
+   룰 폴더에 썼으면 경로 룰만 그 파일을 가리키는 줄이다 — Antigravity 와 함께면 `.agents/rules/<룰>.md`(ADR-117),
+   없이 Claude Code 와 함께면 `.claude/rules/<룰>.md`(ADR-118). OpenCode 가 섞여도 같다(ADR-119).
 4. **문서·자산 변경의 영향 범위를 도구·grep 으로 고르지 마라** — 애매하면 전체를 돌린다.
    근거 실측·전례 = `.claude/rules/test-policy.md` §영향 범위.
 5. **버전 확인은 `package.json`·`git tag` 로 한다.** `package-lock.json` 은 게시 계약 밖이라

@@ -137,7 +137,9 @@ const RULE_DESTINATION: Record<CliBase, (f: string, inst: Installed) => boolean>
   codex: (f, inst) => f === "AGENTS.md" || pointedFiles(inst).has(f),
   // OpenCode — 프로젝트 루트 `AGENTS.md` 를 자동으로 읽고, `opencode.json` 의 `instructions` 가 가리키는 파일을 함께 읽는다
   // (공식: "combined with your AGENTS.md"). #944 — Codex 가 없는 조합은 룰을 `instructions` 의 `.agents/rules/*.md` 로 받는다.
-  opencode: (f, inst) => f === "AGENTS.md" || instructionFiles(inst).has(f),
+  // #960 (ADR-119) — 그 파일의 경로 룰 포인터가 가리키는 룰 파일도 OpenCode 가 그 파일을 고치기 전에 읽는다(실 OpenCode 6/6 — Codex 와 같다).
+  opencode: (f, inst) =>
+    f === "AGENTS.md" || instructionFiles(inst).has(f) || pointedFiles(inst).has(f),
   // Antigravity — `.agents/rules/*.md` 워크스페이스 룰.
   antigravity: (f) => f.startsWith(".agents/rules/"),
 };
