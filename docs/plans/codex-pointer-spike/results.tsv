@@ -24,3 +24,19 @@ B1-2	B1	True	True	False	True	True	0	11	219108	// ui-rule: v7
 C-0	C	False	False	True	True	True	0	15	332622	// ui-rule: v7
 C-1	C	False	False	True	True	True	0	10	133184	// ui-rule: v7
 D-0	D	False	False	False	False	False	None	8	121098	import type * as React from "react";
+
+# 2차 — 실제 배포 형태(상시 룰 인라인 + 경로 룰 포인터 목록) · 전역 설정 없음
+run	done	failed	read_rule	tsx_touched	canary_1st	price_floor	ncmd	in_tok
+create-medium-A-0	True	False	False	True	True	-	6	125056
+create-medium-B-0	True	False	True	True	True	-	4	124113
+create-medium-B-1	True	False	True	True	True	-	4	109042
+create-medium-B-2	True	False	True	True	True	-	4	123832
+incidental-medium-A-0	True	False	False	True	True	True	5	346329
+incidental-medium-B-0	True	False	True	True	True	True	4	153335
+incidental-medium-B-1	True	False	True	True	True	True	6	131691
+incidental-xhigh-A-0	True	False	False	True	True	True	12	170155
+incidental-xhigh-A-1	True	False	False	True	True	True	12	172617
+incidental-xhigh-B-0	True	False	True	True	True	True	10	165717
+incidental-xhigh-B-1	True	False	True	True	True	True	12	186730
+incidental-xhigh-B-2	False	True	True	True	True	True	7	None
+incidental-xhigh-D-0	True	False	False	True	False	True	13	167156
