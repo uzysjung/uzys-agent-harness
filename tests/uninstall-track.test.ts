@@ -330,11 +330,13 @@ describe("#543 uninstall --track — 판정 기준", () => {
       read("AGENTS.md").replace("## Project Context\n", "## Project Context\n\n우리 팀 문단.\n"),
     );
     install(["tooling", "csr-fastapi"], ["claude", "codex"], {}, "update");
-    expect(read("AGENTS.md")).toContain("## UI Components"); // 대조군
+    // 대조군 — Claude Code + Codex 는 경로 룰이 `.claude/rules/` 포인터다(#953 · ADR-118)
+    expect(read("AGENTS.md")).toContain("→ `.claude/rules/ui-components.md`");
 
     const out = uninstall({ track: "csr-fastapi" });
 
     const after = read("AGENTS.md");
+    expect(after).not.toContain("ui-components");
     expect(after).not.toContain("## UI Components");
     expect(after).toContain("우리 팀 문단.");
     expect(out.text).toContain("AGENTS.md — re-rendered for Codex (your sections kept)");
@@ -347,7 +349,15 @@ describe("#543 uninstall --track — 판정 기준", () => {
     install(["tooling"], ["claude", "codex"], {}, "update");
 
     expect(backups()).toEqual(backupsBefore);
-    expect(snapshot()).toEqual(snap);
+    // 재렌더는 경로 룰을 인라인으로 쓰고(`--track` 재렌더는 룰 폴더를 쓰지 않는다) update 가 `.claude/rules/` 포인터로 되돌린다 — 그
+    // 파일만 바뀌고 나머지는 그대로다(ADR-116 이 감수한 "재렌더 = 인라인 → 다음 update 포인터" 와 같은 부류 · ADR-118)
+    const now = snapshot();
+    snap.delete("AGENTS.md");
+    const nowAgents = now.get("AGENTS.md") ?? "";
+    now.delete("AGENTS.md");
+    expect(now).toEqual(snap);
+    expect(nowAgents).toContain("→ `.claude/rules/cli-development.md`");
+    expect(nowAgents).toContain("우리 팀 문단.");
   });
 
   it("8 · 외부 자산 · 기본 MCP 행은 남기고 빼는 명령을 댄다(D1 · D2)", () => {
@@ -719,7 +729,8 @@ describe("#543 적대적 리뷰 수정", () => {
   });
 
   it("M1 · AGENTS.md 바이트가 그대로면 재렌더 줄을 내지 않는다", () => {
-    install(["full", "tooling"], ["claude", "codex"]);
+    // Codex 단독 — Claude Code 가 섞이면 경로 룰이 `.claude/rules/` 포인터라(#953) 재렌더(늘 인라인)가 바이트를 바꾼다
+    install(["full", "tooling"], ["codex"]);
     const before = read("AGENTS.md");
 
     const out = uninstall({ track: "tooling" });

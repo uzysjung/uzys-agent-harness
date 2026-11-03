@@ -83,7 +83,7 @@ _(not filled yet — what this project is, who it is for, and why it exists)_
 | 도구 | 원칙을 읽는 자리 | 룰을 읽는 자리 |
 |---|---|---|
 | Claude Code | `CLAUDE-uzys-harness.md` (루트 `CLAUDE.md` 의 `@import` 로) | `.claude/rules/*.md` |
-| Codex | `AGENTS.md` | **같은 `AGENTS.md`** 맨 끝의 `## Harness Rules` 절. OpenCode 없이 Antigravity 와 함께 깔리면 경로가 정해진 룰(`.tsx` · `.sh` 등)만 그 절이 가리키는 `.agents/rules/<룰>.md` |
+| Codex | `AGENTS.md` | **같은 `AGENTS.md`** 맨 끝의 `## Harness Rules` 절. OpenCode 없이 Antigravity 나 Claude Code 와 함께 깔리면 경로가 정해진 룰(`.tsx` · `.sh` 등)만 그 절이 가리키는 `.agents/rules/<룰>.md`(Antigravity) 또는 `.claude/rules/<룰>.md`(Claude Code) |
 | OpenCode | `AGENTS.md` | **같은 `AGENTS.md`** 맨 끝의 `## Harness Rules` 절. Codex 없이 Antigravity 와 함께 깔리면 `.agents/rules/*.md` — `opencode.json` 의 `instructions` 원소 하나로 읽습니다 |
 | Antigravity | `AGENTS.md` | `.agents/rules/*.md` (Antigravity 가 요구하는 trigger frontmatter 를 단 판) |
 
@@ -96,7 +96,8 @@ Codex · OpenCode · Antigravity 는 **같은 `AGENTS.md` 한 파일을 씁니�
 끝에 붙는 하네스 블록은 늘 룰 본문을 담습니다). Codex 와 Antigravity 가 함께 깔리고 OpenCode 가 없으면, 특정 파일을 고칠 때만
 쓰는 룰(`.tsx` · `.jsx` 화면 · `.sh` 스크립트 등)은 본문 대신 "아래 파일을 만들거나 고치기 전에 그 룰을 읽고 따른다" 와 Antigravity 가
 쓴 `.agents/rules/<룰>.md` 목록으로 들어갑니다 — Codex 는 그 파일을 고칠 때만 그 룰을 읽습니다(같은 조건 — 하네스가 만든
-`AGENTS.md` 이고 그 실행이 그 파일을 썼을 때). 늘 적용되는 룰은 그대로 본문입니다. 여러분이 덧붙이는 절은 룰 절 **위에** 두세요 — 룰 절이 맨 끝이라
+`AGENTS.md` 이고 그 실행이 그 파일을 썼을 때). Antigravity 가 없고 Claude Code 와 함께면 같은 목록이 Claude Code 의 `.claude/rules/<룰>.md`
+를 가리킵니다 — `uninstall --cli claude` 는 그 파일을 지우기 전에 `AGENTS.md` 를 본문으로 다시 씁니다. 늘 적용되는 룰은 그대로 본문입니다. 여러분이 덧붙이는 절은 룰 절 **위에** 두세요 — 룰 절이 맨 끝이라
 Antigravity 가 파일 하나에서 24,000 바이트를 넘는 부분을 잘라도 잘리는 것은 룰 사본이고, 룰 뒤에 적은 절은 다음 `update`
 가 그 자리로 옮깁니다.
 v26.164.0 까지 Antigravity 가 읽던 `.agents/rules/uzys-harness.md` 는 은퇴했습니다 — 첫 `update` 가 그 파일에

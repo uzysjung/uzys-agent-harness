@@ -148,7 +148,7 @@ your-project/
 | 도구 | 룰 | 스킬 | 훅 | 서브에이전트 | 플러그인 |
 |---|---|---|---|---|---|
 | Claude Code | ✓ | ✓ | ✓ | ✓ | ✓ |
-| Codex | ✓ (`AGENTS.md` 안에 포함. OpenCode 없이 Antigravity와 함께 깔면, 하네스가 만든 `AGENTS.md`일 때 특정 파일에만 쓰는 룰은 `AGENTS.md`가 `.agents/rules/`의 파일을 가리킨다) | ✓ | 세션 시작만 | — | — |
+| Codex | ✓ (`AGENTS.md` 안에 포함. OpenCode 없이 Antigravity나 Claude Code와 함께 깔면, 하네스가 만든 `AGENTS.md`일 때 특정 파일에만 쓰는 룰은 `AGENTS.md`가 `.agents/rules/`(Antigravity) 또는 `.claude/rules/`(Claude Code)의 파일을 가리킨다) | ✓ | 세션 시작만 | — | — |
 | OpenCode | ✓ (`AGENTS.md` 안에 포함. Codex 없이 Antigravity와 함께 깔면, 하네스가 만든 `AGENTS.md`일 때 `opencode.json`을 거쳐 `.agents/rules/`를 읽는다) | ✓ | — | — | — |
 | Antigravity | ✓ | ✓ | — | — | — |
 

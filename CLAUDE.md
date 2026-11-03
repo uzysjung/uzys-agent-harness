@@ -114,7 +114,8 @@ TypeScript + tsup 번들 · Node 20+ · vitest · biome. 배포 = npm `@uzysjung
    `opencode.json` `instructions` 의 `.agents/rules/*.md` 로 그 파일을 읽는다(여전히 상주 ·
    `AGENTS.md` 에는 위치 안내만). OpenCode 단독이면 `instructions` 에 `rules/` 가 없다 —
    `tests/resident-reach-4cli.test.ts` 가 문다. 경위 = #300 · #338 · ADR-116. Codex + Antigravity(OpenCode
-   없음)면 경로 룰만 `.agents/rules/<룰>.md` 를 가리키는 줄이다(ADR-117).
+   없음)면 경로 룰만 `.agents/rules/<룰>.md` 를 가리키는 줄이고(ADR-117), Antigravity 없이 Claude Code 와 함께면
+   `.claude/rules/<룰>.md` 를 가리킨다(ADR-118).
 4. **문서·자산 변경의 영향 범위를 도구·grep 으로 고르지 마라** — 애매하면 전체를 돌린다.
    근거 실측·전례 = `.claude/rules/test-policy.md` §영향 범위.
 5. **버전 확인은 `package.json`·`git tag` 로 한다.** `package-lock.json` 은 게시 계약 밖이라
