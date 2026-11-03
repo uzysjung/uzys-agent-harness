@@ -253,13 +253,14 @@ describe("§2 — 실행마다 Codex 가 경로 룰을 받는 수 (Claude Code +
     expect(pointerFolder()).toBe(".claude/rules");
   });
 
-  it("10행 — claude+codex 에 install --cli opencode → 인라인(OpenCode 가 섞이면 현행)", () => {
+  it("10행 — claude+codex 에 install --cli opencode → 인라인(Claude Code 단계가 안 돌았다) · update 에 `.claude/rules/` 포인터(#960 · ADR-119)", () => {
     install(["claude", "codex"]);
     install(["opencode"]);
     expect(pointerFolder()).toBeNull();
     everyPathRuleReachesCodex(["full"], "install --cli opencode");
     update();
-    expect(pointerFolder()).toBeNull();
+    expect(pointerFolder()).toBe(".claude/rules");
+    everyPathRuleReachesCodex(["full"], "update");
   });
 
   it("11행 — Claude Code 룰 파일 하나가 프로젝트 밖 링크라 건너뛰면 인라인 — 그 룰을 Codex 가 잃지 않는다", () => {
