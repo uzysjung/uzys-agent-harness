@@ -74,6 +74,14 @@ const RULES_POINTER = [
   "> `instructions` 로 읽는다. 이 프로젝트만의 규칙은 이 절 **위에** `## ` 절로 쓴다.",
 ].join("\n");
 
+/**
+ * #944 — 이 `AGENTS.md` 본문이 룰 대신 위치 안내를 담고 있는가(렌더는 둘을 함께 쓰지 않는다). update 화면의 상주 비용 줄이 룰을
+ * 어디서 셀지 **디스크 바이트로** 가른다 — 집합(Codex · OpenCode 가 있다)만 보면 포인터 설치본에서 "룰이 AGENTS.md 안" 이라고 틀린다.
+ */
+export function hasRulesPointer(text: string): boolean {
+  return text.includes(RULES_POINTER);
+}
+
 const CODEX_SIZE_NOTE = [
   ">",
   "> Codex 는 **합친 크기**가 `project_doc_max_bytes`(기본 32 KiB)에 닿으면 **거기서 읽기를 멈춘다** — 뒤에 오는",

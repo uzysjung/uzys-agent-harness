@@ -356,6 +356,28 @@ describe("opencode.json — 설치자 설정은 그대로, 하네스 MCP 키만 
     expect(backups()).toEqual([]);
   });
 
+  it("#944 화면: 하네스가 쓴 룰 원소를 서버처럼 댄다 — 설치자가 먼저 가진 같은 원소 · OpenCode 단독은 대지 않는다", () => {
+    const row = (cli: CliBase[], report: InstallReport): string =>
+      screen(cli, report).find((l) => l.includes("opencode.json")) ?? "";
+    put("opencode.json", `${JSON.stringify(INSTALLER_OPENCODE, null, 2)}\n`);
+    const ours = row(["opencode", "antigravity"], install(["opencode", "antigravity"]));
+    expect(ours).toContain("harness mcp: ");
+    expect(ours).toContain("harness instructions: .agents/rules/*.md");
+
+    // 대조군 — 설치자가 먼저 같은 원소를 가진 파일(기록에 없다 = 하네스 몫이 아니다)
+    rmSync(projectDir, { recursive: true, force: true });
+    projectDir = mkdtempSync(join(tmpdir(), "cli-shared-"));
+    put("opencode.json", `${JSON.stringify({ instructions: [".agents/rules/*.md"] })}\n`);
+    const theirs = row(["opencode", "antigravity"], install(["opencode", "antigravity"]));
+    expect(theirs).toContain("harness mcp: ");
+    expect(theirs).not.toContain("harness instructions");
+
+    // 대조군 — OpenCode 단독은 원소를 쓰지 않는다
+    rmSync(projectDir, { recursive: true, force: true });
+    projectDir = mkdtempSync(join(tmpdir(), "cli-shared-"));
+    expect(row(["opencode"], install(["opencode"]))).not.toContain("harness instructions");
+  });
+
   it("같은 이름의 설치자 서버는 설치자 값이 이긴다 · 파일이 없으면 템플릿 바탕 + 하네스 서버로 만든다", () => {
     put(
       "opencode.json",

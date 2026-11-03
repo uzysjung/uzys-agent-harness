@@ -1,3 +1,4 @@
+import { hasRulesPointer } from "../agents-md-render.js";
 import { retiredFeaturesLeftBehind } from "../codex/config-toml.js";
 import { codexConfigLabel, codexConfigPath } from "../codex/opt-in.js";
 import { hasTrustEntry, tomlBasicString } from "../codex/trust-entry.js";
@@ -403,7 +404,8 @@ export function renderUpdateSummary(
  *    `*.backup-*` 는 아니다. claude = `.claude/rules/`, Antigravity = `.agents/rules/`(앵커 파일 제외 —
  *    그건 CLAUDE.md 행이 잰다). Codex · OpenCode 는 룰 폴더가 없고 룰이 `AGENTS.md` 본문에 인라인이다
  *    — 룰마다 갈라 잴 수 없어 수는 계획 엔트리로 두고 토큰은 `AGENTS.md` 통째 숫자에 맡긴다
- *    (`rulesInsideAgentsMd`).
+ *    (`rulesInsideAgentsMd`). 예외(#944): `AGENTS.md` 가 위치 안내를 담았으면 룰은 `.agents/rules/` 파일이다
+ *    (Antigravity 가 직접 · OpenCode 가 `instructions` 로) — 그 파일을 잰다.
  *  - 스킬: 계획한 번들 스킬 중 **그 CLI 자리(`.claude/skills` · `.agents/skills`)에 있는 것**을 디스크
  *    판으로. 폴더 전부를 세지 않는 이유는 외부 스킬이 같은 폴더에 깔리고 그쪽은 `external unmeasured`
  *    로 따로 세기 때문이다(두 번 세지 않는다).
@@ -430,12 +432,13 @@ function residentEntriesOnDisk(
           }))
       : [];
   };
-  // Codex · OpenCode 가 있으면 룰은 `AGENTS.md` 본문(인라인 — 계획 엔트리로 센다), Antigravity 만이면 `.agents/rules/`
-  // 파일이다(옛 앵커 이름은 은퇴 대상이라 세지 않는다 — frontmatter 가 없어 Antigravity 가 읽지도 않는다).
+  // Codex · OpenCode 가 있으면 룰은 `AGENTS.md` 본문(인라인 — 계획 엔트리로 센다), Antigravity 만이거나 `AGENTS.md` 가 위치 안내를
+  // 담았으면(#944 — Antigravity 가 직접, OpenCode 가 `instructions` 로 읽는다) `.agents/rules/` 파일이다(옛 앵커 이름은 은퇴 대상이라
+  // 세지 않는다 — frontmatter 가 없어 Antigravity 가 읽지도 않는다).
   const rules =
     surface === "claude"
       ? mdFiles(join(".claude", "rules"), "rules")
-      : rulesInline(spec.cli)
+      : rulesInline(spec)
         ? planned.filter((e) => e.target.startsWith(".claude/rules/"))
         : mdFiles(join(".agents", "rules"), "rules", "uzys-harness.md");
   const slot = hasClaude ? join(".claude", "skills") : join(".agents", "skills");
@@ -485,7 +488,7 @@ function contextFilesOnDisk(spec: InstallSpec): string[] {
  * 남아 있을 수 있어 "planned" 라고 붙인다.
  */
 function rulesInsideAgentsMd(spec: InstallSpec, cost: ResidentCost): ResidentCost {
-  if (anchorSurface(spec.cli).scaffold !== "agents-md" || !rulesInline(spec.cli)) return cost;
+  if (anchorSurface(spec.cli).scaffold !== "agents-md" || !rulesInline(spec)) return cost;
   const rendered = spec.updateOnly === undefined || spec.updateOnly.includes("external");
   return makeResidentCost({
     ...cost,
@@ -495,9 +498,14 @@ function rulesInsideAgentsMd(spec: InstallSpec, cost: ResidentCost): ResidentCos
   });
 }
 
-/** 룰이 `AGENTS.md` 본문에 인라인으로 들어가는 집합인가 — Codex · OpenCode 가 있을 때(`agents-md-render.ts`). */
-function rulesInline(cli: CliTargets): boolean {
-  return cli.includes("codex") || cli.includes("opencode");
+/**
+ * 룰이 `AGENTS.md` 본문에 인라인으로 들어가 있는가 — Codex · OpenCode 가 있을 때(`agents-md-render.ts`). #944 — 렌더가 룰 대신
+ * 위치 안내를 썼으면(디스크의 `AGENTS.md` 바이트로 본다 — 이번 실행이 그 파일을 안 썼어도 지금 상주하는 것은 그 바이트다) 아니다.
+ */
+function rulesInline(spec: InstallSpec): boolean {
+  if (!spec.cli.includes("codex") && !spec.cli.includes("opencode")) return false;
+  const agents = join(spec.projectDir, "AGENTS.md");
+  return !(existsSync(agents) && hasRulesPointer(readFileSync(agents, "utf8")));
 }
 
 /**
@@ -772,12 +780,21 @@ function sharedLeftRow(f: NonNullable<UpdateModeReport["sharedLeft"]>[number]): 
   return assetRow("skip", f.path, `${parts.join(" · ")}${legacy}`);
 }
 
-/** `opencode.json` 에 하네스가 쓴 서버 이름 — 기록할 몫(`mcp.<name>`)에서. */
+/**
+ * `opencode.json` 에 하네스가 쓴 몫 — 서버 이름(`mcp.<name>`)과, #944 룰 원소(`instructions[=…]`)를 하네스가 썼으면 그 값.
+ * 설치자가 먼저 갖고 있던 같은 원소는 하네스 몫이 아니라 말하지 않는다(기록에 없다).
+ */
 function opencodeMcpPart(r: SharedWriteResult): string {
-  const names = harnessKeysInFile(r)
+  const keys = harnessKeysInFile(r);
+  const names = keys
     .map((k) => /^mcp\.(.+)$/.exec(k)?.[1])
     .filter((n): n is string => n !== undefined && !n.endsWith("{}"));
-  return names.length > 0 ? `harness mcp: ${names.join(" · ")}` : "no harness part in the file";
+  const instructions = keys.flatMap((k) => /^instructions\[=(.*)\]$/.exec(k)?.[1] ?? []);
+  const parts = [
+    ...(names.length > 0 ? [`harness mcp: ${names.join(" · ")}`] : []),
+    ...(instructions.length > 0 ? [`harness instructions: ${instructions.join(" · ")}`] : []),
+  ];
+  return parts.length > 0 ? parts.join(" · ") : "no harness part in the file";
 }
 
 /** config.toml 의 하네스 구간 — 파일 순서(`top` 이 맨 앞)대로. */
