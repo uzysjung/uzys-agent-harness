@@ -119,7 +119,8 @@ export interface CliTransformParams {
   /**
    * v26.165.0 독립 검증 NOTE-5 — 기록 트랙 ∪ 이번 트랙의 룰(`excluded` 제외). `AGENTS.md` 집합이 이번 `cli` 밖의 기록
    * CLI 를 포함하면(예: `install --cli claude --track data` 가 기록된 codex 의 `AGENTS.md` 를 다시 렌더) 그 파일의
-   * `## Harness Rules` 는 이것으로 렌더한다 — 이번 트랙만 넣으면 다음 update 까지 그 CLI 가 룰을 잃는다.
+   * `## Harness Rules` 는 이것으로 렌더한다 — 이번 트랙만 넣으면 다음 update 까지 그 CLI 가 룰을 잃는다. #955 — 집합의 CLI 를 이번에
+   * 다 다시 골라도 같다(`install --cli claude --cli codex --track <새 트랙>`): `AGENTS.md` 는 늘 이것으로 렌더한다.
    * 생략 = `rules` 그대로(update 는 이미 누적 트랙으로 `rules` 를 만든다).
    */
   cumulativeRules?: ReadonlyArray<string>;
@@ -471,9 +472,8 @@ export function runCliTransforms(params: CliTransformParams): CliTransformResult
   // 하나")가 사라진다.
   let agentsMd: AgentsMdTransformReport | null = null;
   if (agentsSet.length > 0) {
-    const beyondThisRun = agentsSet.some((c) => !cli.includes(c));
-    const agentsRules =
-      beyondThisRun && params.cumulativeRules !== undefined ? params.cumulativeRules : rules;
+    // #955 — 트랙은 누적이다(#585): 이 파일을 읽는 CLI 를 이번에 다 다시 골랐어도 기록 트랙의 룰을 뺀 판을 쓰면 다음 update 까지 그 룰을 잃는다
+    const agentsRules = params.cumulativeRules ?? rules;
     const agRules = antigravityRuleWrites(projectDir, antigravity);
     const wroteAllTo = (folder: PathRuleFolder, written: ReadonlySet<string> | null): boolean =>
       written !== null && wroteEveryRule(harnessRoot, folder, written, agentsRules);
