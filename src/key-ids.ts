@@ -76,7 +76,7 @@ export function renderedKeyIds(
   }
   if (clis.includes("opencode")) {
     // #944 (ADR-116) — 룰 원소는 변환과 같은 조건(Antigravity ∈ 집합 ∧ Codex ∉ 집합)으로 — 그래야 `--without` 이 그 id 를 받는다.
-    // 여기 집합은 깔린 CLI ∪ 이번 `--cli` 다(받을 수 있는 id 의 집합이라 이번 선택보다 넓어도 된다)
+    // 여기 집합은 깔린 CLI ∪ 이번 `--cli` 다 — 변환의 `AGENTS.md` 집합(선택 ∪ 기록)과 같다
     const rulesInstruction = clis.includes("antigravity") && !clis.includes("codex");
     for (const key of renderOpencodePortion(mcp, rulesInstruction).keys()) {
       add("opencode.json", key);

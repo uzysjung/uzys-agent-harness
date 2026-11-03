@@ -165,7 +165,7 @@ describe("#739 update 결과 — 부분 문자열 대조를 걷어낸 뒤", () =
     const harnessWrote = agents()
       .replace(`${ANCHOR_BLOCK.start}\n`, "")
       .replace(`${ANCHOR_BLOCK.end}\n`, "")
-      .replace(/<!-- uzys-harness:skills:(start|end) -->\n/g, "");
+      .replace(/<!-- uzys-harness:(skills|rules):(start|end) -->\n/g, "");
     expect(harnessWrote, "픽스처 자기검증 — 마커 없는 옛 판").not.toContain("<!-- uzys-harness:");
     recordAsHarnessWritten(harnessWrote);
     const MINE = "## My rules\n\nMY-RULES-TEXT — 배포는 금요일에 하지 않는다.";

@@ -13,6 +13,8 @@
  *     24,000 B 에서 자르고 Codex 가 32 KiB 에서 멈출 때 빠지는 것이 설치자 절이 아니라 룰 사본의 뒷부분이게 한다
  *   - #944 — Codex 가 없고 이번 실행이 OpenCode 의 `instructions` 로 `.agents/rules/` 를 읽게 해 뒀으면
  *     (`rulesViaInstructions`) 룰 본문 대신 위치 안내 한 문단 — 두 CLI 가 룰을 한 번씩만 읽는다
+ *   - 그 절의 하네스 몫(안내 · 룰 본문 · 위치 안내)은 `rules` 마커 블록 안이다(#944 F1) — 맨 끝 절이라 설치자가 파일 끝에 붙인
+ *     `## ` 절이 이 절 안에 놓인다. 블록 끝 뒤의 절은 제목과 무관하게 설치자 것이다(`headingOwner`)
  *   - `## Session Start` — Codex 만의 문장(SessionStart 훅이 없는 CLI 의 SPEC 안내는 Codex 에서 왔다)
  *   - `## Protected Files` 의 첫 줄 — 그 CLI 의 1차 방어
  *
@@ -20,7 +22,7 @@
  * 템플릿 **전체**를 넘긴다 — 절 이름의 합집합이 경계의 SSOT 다.
  */
 
-import { ANCHOR_BLOCK, wrapHarnessBlock } from "./agents-md-merge.js";
+import { ANCHOR_BLOCK, RULES_BLOCK, wrapHarnessBlock } from "./agents-md-merge.js";
 import { CLI_BASE_SORT_ORDER, CLI_DISPLAY_NAMES } from "./cli-targets.js";
 
 /** `AGENTS.md` 의 템플릿 — 하네스 루트 상대. CLI 판마다 따로 두지 않는다(#642 · ADR-103). */
@@ -141,7 +143,8 @@ function pruneTemplate(template: string, empty: ReadonlySet<string>): string {
  *   - {PROJECT_NAME} · {CLI_NAMES} — basename of project dir · display names of the set
  *   - {PROJECT_CONTEXT} — project-specific fill scaffold (installer-owned section)
  *   - {PROJECT_RULES} — full CLAUDE.md body (first h1 stripped), wrapped in the anchor marker (#503)
- *   - {HARNESS_RULES_NOTE} · {HARNESS_RULES} · {SESSION_START} · {PROTECTED_FILES_LEAD} — set-dependent, see header
+ *   - {HARNESS_RULES} · {SESSION_START} · {PROTECTED_FILES_LEAD} — set-dependent, see header. {HARNESS_RULES} = the
+ *     `## Harness Rules` body (note + inline rules, or the pointer) wrapped in the `rules` marker (#944 F1)
  *
  * 마지막에 `/uzys:` → `/uzys-` rename.
  */
@@ -153,14 +156,19 @@ export function renderAgentsMd(params: AgentsMdParams): string {
   const inlineRules = !pointer && (clis.includes("codex") || clis.includes("opencode"));
   const leads = clis.flatMap((c) => PROTECTED_LEAD[c] ?? []);
   const values: Record<string, string> = {
-    "{HARNESS_RULES_NOTE}": pointer
-      ? RULES_POINTER
+    "{HARNESS_RULES}": pointer
+      ? wrapHarnessBlock(RULES_BLOCK, RULES_POINTER)
       : inlineRules
-        ? clis.includes("codex")
-          ? `${RULES_NOTE}\n${CODEX_SIZE_NOTE}`
-          : RULES_NOTE
+        ? wrapHarnessBlock(
+            RULES_BLOCK,
+            [
+              clis.includes("codex") ? `${RULES_NOTE}\n${CODEX_SIZE_NOTE}` : RULES_NOTE,
+              params.harnessRules.trimEnd(),
+            ]
+              .filter((part) => part !== "")
+              .join("\n\n"),
+          )
         : "",
-    "{HARNESS_RULES}": inlineRules ? params.harnessRules : "",
     "{SESSION_START}": clis.includes("codex") ? CODEX_SESSION_START : "",
     "{PROTECTED_FILES_LEAD}": leads.length === 0 ? "" : `${leads.join("\n")} 그 위에:`,
   };

@@ -65,7 +65,7 @@ export interface OpencodeTransformParams {
   owned?: (rel: string) => boolean;
   /**
    * #944 (ADR-116) — `instructions` 에 룰 원소(`.agents/rules/*.md`)를 하네스 몫으로 더한다. 호출부(`runCliTransforms`)가 정한다:
-   * Antigravity ∈ 이번 선택 ∧ Codex ∉ `AGENTS.md` 집합. 거짓이면 렌더에 없다 — 기록된 원소는 `planUpsert` 가 걷는다. 생략 = 거짓.
+   * Antigravity ∈ `AGENTS.md` 집합(선택 ∪ 기록) ∧ Codex ∉ 그 집합. 거짓이면 렌더에 없다 — 기록된 원소는 `planUpsert` 가 걷는다. 생략 = 거짓.
    */
   rulesInstruction?: boolean;
 }

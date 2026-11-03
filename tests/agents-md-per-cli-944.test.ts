@@ -11,14 +11,20 @@ import {
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { mergeAgentsMd, renderAgentsBlock } from "../src/agents-md-merge.js";
+import {
+  AGENTS_BLOCK,
+  mergeAgentsMd,
+  RULES_BLOCK,
+  renderAgentsBlock,
+  stripHarnessFromAgentsMd,
+} from "../src/agents-md-merge.js";
 import { AGENTS_MD_TEMPLATE, type AgentsMdCli, renderAgentsMd } from "../src/agents-md-render.js";
 import { uninstallAction } from "../src/commands/uninstall.js";
 import { readInstallLog } from "../src/install-log.js";
 import { runInstall } from "../src/installer.js";
 import { renderedKeyIds } from "../src/key-ids.js";
 import { RULES_INSTRUCTION, RULES_INSTRUCTION_KEY } from "../src/opencode/opencode-json.js";
-import { portRules, renderRulesBlock } from "../src/rules-port.js";
+import { portRules, renderRulesBlock, ruleHeadings } from "../src/rules-port.js";
 import type { CliBase, InstallSpec, Track } from "../src/types.js";
 
 /**
@@ -68,7 +74,7 @@ describe("D1 — `## Harness Rules` 는 맨 끝 · 설치자 절은 그 앞 · �
     for (const set of [["codex"], ["opencode"], ["codex", "opencode", "antigravity"]] as const) {
       const out = render(set);
       expect(sections(out).at(-1), set.join("+")).toBe("Harness Rules");
-      expect(out.trimEnd().endsWith("RULE-BODY"), set.join("+")).toBe(true);
+      expect(out.trimEnd().endsWith(`RULE-BODY\n${RULES_BLOCK.end}`), set.join("+")).toBe(true);
     }
   });
 
@@ -105,7 +111,7 @@ describe("D1 — `## Harness Rules` 는 맨 끝 · 설치자 절은 그 앞 · �
     const existing = `${rendered.replace("\n## Harness Rules\n", `\n${mine}\n\n## Harness Rules\n`).replace(/\n+$/, "\n")}\n${after}\n`;
     const merged = mergeAgentsMd({ rendered, existing, template: TEMPLATE });
     expect(merged).toContain(`${mine}\n\n${after}\n\n## Harness Rules\n`);
-    expect(merged.trimEnd().endsWith("RULE-BODY")).toBe(true);
+    expect(merged.trimEnd().endsWith(`RULE-BODY\n${RULES_BLOCK.end}`)).toBe(true);
     expect(mergeAgentsMd({ rendered, existing: merged, template: TEMPLATE })).toBe(merged);
   });
 
@@ -135,6 +141,80 @@ describe("D1 — `## Harness Rules` 는 맨 끝 · 설치자 절은 그 앞 · �
       "## Harness Rules",
     ]);
     expect(block.trimEnd().endsWith("RULE-BODY")).toBe(true);
+    // 블록 안에서 블록을 열지 않는다 — `rules` 마커는 벗긴다(`marker-md` 가 못 읽는 파일이 된다)
+    expect(block).not.toContain("uzys-harness:rules");
+  });
+
+  describe("F1 — `rules` 블록 끝 뒤의 `## ` 절은 제목이 룰 제목과 같아도 설치자 것", () => {
+    const RULE_TITLE = "## Some Rule";
+    const MINE = `${RULE_TITLE}\n\nMINE-SAME-TITLE`;
+    const headings = new Set([RULE_TITLE]);
+
+    it("병합: 블록 끝 뒤의 같은 제목 절 → `## Harness Rules` 앞으로 · 룰 사본은 블록 안에 한 벌", () => {
+      const rendered = render(["codex"]);
+      const existing = `${rendered.replace(/\n+$/, "\n")}\n${MINE}\n`;
+      const merged = mergeAgentsMd({
+        rendered,
+        existing,
+        template: TEMPLATE,
+        harnessRuleHeadings: headings,
+      });
+      expect(merged).toContain(`${MINE}\n\n## Harness Rules\n`);
+      expect(merged.split("RULE-BODY").length - 1).toBe(1);
+      expect(
+        mergeAgentsMd({
+          rendered,
+          existing: merged,
+          template: TEMPLATE,
+          harnessRuleHeadings: headings,
+        }),
+      ).toBe(merged);
+    });
+
+    it("걷기(uninstall): 블록 끝 뒤의 같은 제목 절은 남기고 블록 안의 룰은 걷는다", () => {
+      const existing = `${render(["codex"]).replace(/\n+$/, "\n")}\n${MINE}\n`;
+      const rest = stripHarnessFromAgentsMd({
+        existing,
+        template: TEMPLATE,
+        harnessRuleHeadings: headings,
+      });
+      expect(rest).toContain(MINE);
+      expect(rest).not.toContain("RULE-BODY");
+    });
+
+    it("블록이 없는 옛 판(v26.180 모양 — `## Harness Rules` 가 중간)은 전처럼 제목으로 가른다 · 갈아탄 뒤 룰은 블록 안 한 벌", () => {
+      const rendered = render(["codex"]);
+      // v26.180 모양: 마커 없는 `## Harness Rules` 가 `## Session Start` 앞 · 설치자 절은 `## Protected Files` 뒤(파일 끝)
+      const at = rendered.indexOf("\n## Harness Rules\n");
+      const rulesSection = rendered
+        .slice(at + 1)
+        .replace(`${RULES_BLOCK.start}\n`, "")
+        .replace(`\n${RULES_BLOCK.end}`, "")
+        .replace(/\n+$/, "");
+      const old = `${rendered
+        .slice(0, at + 1)
+        .replace("## Session Start\n", `${rulesSection}\n\n## Session Start\n`)
+        .replace(/\n+$/, "\n")}\n${MINE}\n`;
+      expect(old, "픽스처 자기검증 — 마커 없음").not.toContain("uzys-harness:rules");
+      expect(sections(old), "픽스처 자기검증 — 룰 절이 중간").toEqual([
+        "Project Context",
+        "Project Rules",
+        "Harness Rules",
+        "Session Start",
+        "Protected Files",
+      ]);
+      const merged = mergeAgentsMd({
+        rendered,
+        existing: old,
+        template: TEMPLATE,
+        harnessRuleHeadings: headings,
+      });
+      expect(merged).toContain(`${MINE}\n\n## Harness Rules\n`);
+      expect(merged.split("RULE-BODY").length - 1).toBe(1);
+      expect(merged.trimEnd().endsWith(`RULE-BODY\n${RULES_BLOCK.end}`)).toBe(true);
+      // 그 자리의 마커 없는 룰 절(`## Some Rule` + RULE-BODY)은 제목으로 하네스 것 — 되살리지 않는다
+      expect(merged.split(RULE_TITLE).length - 1).toBe(2);
+    });
   });
 });
 
@@ -296,12 +376,12 @@ describe("D3 · D4 — 실행마다 OpenCode 가 룰을 받는 수", () => {
     expect(reach()).toEqual({ inline: false, glob: true, times: 1 });
   });
 
-  it("antigravity 설치본에 install --cli opencode → 인라인(Antigravity 미실행) · 원소 없음 → update 에 포인터", () => {
+  it("antigravity 설치본에 install --cli opencode → 인라인(Antigravity 미실행) · 원소는 둔다(기록된 Antigravity — 두 번) → update 에 포인터", () => {
     install(["antigravity"]);
     install(["opencode"]);
     expect(pointer()).toBe(false);
-    expect(instructions()).not.toContain(RULES_INSTRUCTION);
-    expect(reach()).toEqual({ inline: true, glob: false, times: 1 });
+    expect(instructions()).toContain(RULES_INSTRUCTION);
+    expect(reach()).toEqual({ inline: true, glob: true, times: 2 });
     update();
     expect(pointer()).toBe(true);
     expect(reach()).toEqual({ inline: false, glob: true, times: 1 });
@@ -327,12 +407,13 @@ describe("D3 · D4 — 실행마다 OpenCode 가 룰을 받는 수", () => {
     expect(reach().times).toBe(1);
   });
 
-  it("포인터 설치본에서 antigravity 를 안 고른 실행(install --cli opencode) → 인라인 · 원소를 걷는다 → update 가 포인터로", () => {
+  it("포인터 설치본에서 antigravity 를 안 고른 실행(install --cli opencode) → 인라인 · 원소는 남는다(두 번) → update 가 포인터로", () => {
     install(["opencode", "antigravity"]);
     install(["opencode"]);
     expect(pointer()).toBe(false);
-    expect(instructions()).not.toContain(RULES_INSTRUCTION);
-    expect(reach()).toEqual({ inline: true, glob: false, times: 1 });
+    expect(instructions()).toContain(RULES_INSTRUCTION);
+    expect(recordedElement()).toBe(true);
+    expect(reach()).toEqual({ inline: true, glob: true, times: 2 });
     update();
     expect(pointer()).toBe(true);
     expect(reach().times).toBe(1);
@@ -439,6 +520,74 @@ describe("D3 · D4 — 실행마다 OpenCode 가 룰을 받는 수", () => {
     expect(readFileSync(join(outside, "git-policy.md"), "utf8")).toBe("# elsewhere\n");
     expect(pointer()).toBe(false);
     expect(reach().inline).toBe(true);
+  });
+
+  it("F2 — 위치 안내로 얼어붙은 첫 접촉 블록 + antigravity 를 안 고른 실행(install --cli opencode) → 원소가 남아 OpenCode 는 0번이 아니다", () => {
+    put("AGENTS.md", "# Mine\n\nINSTALLER-OWN — 설치자가 먼저 쓴 파일.\n");
+    install(["opencode", "antigravity"]);
+    const first = read("AGENTS.md");
+    expect(first, "픽스처 자기검증 — 첫 접촉 블록").toContain(AGENTS_BLOCK.start);
+    expect(pointer(), "픽스처 자기검증 — 블록이 위치 안내로 쓰였다").toBe(true);
+    // 설치자가 블록 안에 한 줄 — 하네스는 그 블록을 더는 바꾸지 않는다(얼어붙음)
+    put("AGENTS.md", first.replace(`${AGENTS_BLOCK.start}\n`, `${AGENTS_BLOCK.start}\nMY-LINE\n`));
+    install(["opencode"]);
+    expect(read("AGENTS.md"), "픽스처 자기검증 — 블록은 그대로(위치 안내)").toContain("MY-LINE");
+    expect(pointer()).toBe(true);
+    expect(instructions()).toContain(RULES_INSTRUCTION);
+    expect(reach()).toEqual({ inline: false, glob: true, times: 1 });
+  });
+
+  /**
+   * #944 F1 — `## Harness Rules` 가 맨 끝이라 설치자가 파일 끝에 붙인 `## ` 절은 그 절 안에 놓인다. 제목이 룰 제목과 같아도
+   * (`## Testing` · `## Git Safety`) `rules` 블록 끝 뒤의 절은 설치자 것이다 — update 병합 · uninstall --cli 재렌더 · uninstall 걷기.
+   */
+  const APPENDED = [
+    "## Testing\n\nINST-TESTING — 통합 테스트는 docker 로만 돈다.",
+    "## Git Safety\n\nINST-GITSAFETY — 배포 브랜치에 직접 push 하지 않는다.",
+    "## Notes\n\nINST-NOTES — 팀 메모.",
+  ];
+  const appendAtEnd = (): void =>
+    put("AGENTS.md", `${read("AGENTS.md").replace(/\n+$/, "\n")}\n${APPENDED.join("\n\n")}\n`);
+  const kept = (): boolean[] => APPENDED.map((sec) => read("AGENTS.md").includes(sec));
+  const SETS = [
+    ["opencode+antigravity(위치 안내)", ["opencode", "antigravity"]],
+    ["codex+opencode+antigravity(인라인)", ["codex", "opencode", "antigravity"]],
+  ] as const;
+
+  it.each(
+    SETS,
+  )("F1 — 파일 끝에 붙인 룰 제목 절은 update → uninstall --cli antigravity → uninstall 뒤에도 남는다 — %s", (_, set) => {
+    const titles = ruleHeadings(ROOT);
+    expect(
+      titles.has("## Testing") && titles.has("## Git Safety"),
+      "픽스처 자기검증 — 룰 제목과 겹친다",
+    ).toBe(true);
+    install([...set]);
+    expect(
+      read("AGENTS.md").trimEnd().endsWith(RULES_BLOCK.end),
+      "픽스처 자기검증 — 룰 절이 맨 끝",
+    ).toBe(true);
+    appendAtEnd();
+    update();
+    expect(kept()).toEqual([true, true, true]);
+    const after = read("AGENTS.md");
+    // 되살린 자리 = `## Harness Rules` 바로 앞(다른 설치자 절과 같다) · 두 번째 update 는 같은 바이트
+    expect(after).toContain(`${APPENDED.join("\n\n")}\n\n## Harness Rules\n`);
+    update();
+    expect(read("AGENTS.md")).toBe(after);
+    uninstall({ cli: "antigravity" });
+    expect(kept()).toEqual([true, true, true]);
+    uninstall({});
+    expect(kept()).toEqual([true, true, true]);
+  });
+
+  it.each(
+    SETS,
+  )("F1 — 붙인 직후 uninstall --cli antigravity(재렌더)도 그 절을 남긴다 — %s", (_, set) => {
+    install([...set]);
+    appendAtEnd();
+    uninstall({ cli: "antigravity" });
+    expect(kept()).toEqual([true, true, true]);
   });
 
   function put(rel: string, content: string): void {

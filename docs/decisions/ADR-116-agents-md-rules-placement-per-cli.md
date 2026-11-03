@@ -24,13 +24,19 @@
 1. **`## Harness Rules` 를 템플릿 맨 끝으로** — `Project Context` → `Project Rules` → `Session Start` → `Protected Files` → (설치자 상위
    절) → `Harness Rules`. update 병합은 설치자 상위 절을 `## Harness Rules` 바로 앞에 되살린다(그 절이 렌더에 없으면 파일 끝). 첫 접촉
    블록도 블록 안 순서가 같다. 안내문은 "이 절 **위에** `## ` 절로" 쓰라고 한다. 인라인 룰은 상시 룰 → 경로 룰(`paths:`) 순이다 —
-   Codex 가 32 KiB 에서 멈추면 Claude Code 가 지연 로드하는 것과 같은 경로 룰이 빠진다.
+   Codex 가 32 KiB 에서 멈추면 Claude Code 가 지연 로드하는 것과 같은 경로 룰이 빠진다. 그 절의 하네스 몫(안내 · 인라인 룰 · 위치
+   안내)은 `rules` 마커 블록 안이다 — 블록 안은 하네스 것, **블록 끝 뒤의 `## ` 절은 제목과 무관하게 설치자 것**이다(병합 · uninstall
+   재렌더 · uninstall 걷기가 한 판정 `headingOwner`). 그 절이 파일 끝이라 설치자가 끝에 붙인 `## Testing` 이 룰 제목과 같아도 다음
+   update 가 룰 앞으로 옮긴다(적대적 리뷰 F1). 블록이 없는 옛 판 파일(그 절이 중간)은 전처럼 룰 제목으로 가른다. 첫 접촉 블록
+   안에서는 이 마커를 벗긴다.
 2. **Codex 가 없고 이번 실행이 OpenCode 의 도달을 보장했으면 룰 본문 대신 위치 안내 한 문단.** 조건(`rulesViaInstructions`)은 집합이
    아니라 이번 실행의 쓰기 결과다: ① Codex ∉ `AGENTS.md` 집합 ② opencode ∈ 이번 선택 ③ Antigravity 변환이 이번 룰 전부를
    `.agents/rules/` 에 썼다 ④ 그 뒤 디스크의 `opencode.json` 을 다시 읽어 `instructions` 에 `.agents/rules/*.md` 가 있다(누구 것이든).
    하나라도 거짓이면 인라인. `uninstall --cli` · `--track` 재렌더는 `opencode.json` 을 쓰지 않으므로 늘 인라인이다.
-3. **`opencode.json` 의 하네스 몫 = `mcp.<name>` ∪ `instructions` 원소 `.agents/rules/*.md`**(Antigravity ∈ 이번 선택 ∧ Codex ∉
-   `AGENTS.md` 집합일 때). 쓰는 곳은 opencode 변환 하나다. 키 문법에 **문자열 동치 배열 원소** `instructions[=<값>]` 를 더한다(`#` 는
+3. **`opencode.json` 의 하네스 몫 = `mcp.<name>` ∪ `instructions` 원소 `.agents/rules/*.md`**(Antigravity ∈ `AGENTS.md` 집합(선택 ∪
+   기록) ∧ Codex ∉ 그 집합일 때 — `renderedKeyIds` 와 같은 조건). Antigravity 를 안 고른 부분 실행도 원소를 걷지 않는다 — 걷으면
+   위치 안내로 굳은 첫 접촉 블록에서 OpenCode 가 0번이 된다(적대적 리뷰 F2). 그 실행의 `AGENTS.md` 는 결정 2 ③ 이 거짓이라 인라인이고
+   다음 update 가 포인터로 모은다. 쓰는 곳은 opencode 변환 하나다. 키 문법에 **문자열 동치 배열 원소** `instructions[=<값>]` 를 더한다(`#` 는
    훅 핸들러 전용). 배열을 하네스가 만들었으면 `instructions[]` 컨테이너 키도 기록한다. 설치 전부터 같은 문자열이 있으면 설치자
    것이다(Q3 — 기록하지 않고 빼지도 않는다). `--without opencode:instructions[=.agents/rules/*.md]` 로 뺀다. ADR-097 은 바꾸지 않는다 —
    모델 안의 새 키 종류다.
@@ -41,7 +47,9 @@
   OpenCode 가 룰을 0번 받는 실행이 생긴다(설계 검증 B1).
 - **`AGENTS.md` 쪽에서 `opencode.json` 을 한 번 더 쓴다** — 한 실행에서 같은 파일을 두 번 `writeShared` 하면 앞 몫이 사라진다(B1-c).
 - **원소 키를 `#` 로 쓴다** — `#` 는 스크립트 호출 판정 · 묶음 소유를 뜻한다(N2).
-- **인라인 룰을 마커로 감싸 위치 대신 마커로 가른다** — 설치자가 룰 뒤에 같은 제목을 쓰는 경우를 막지만 이번 범위 밖(N4).
+- **`## Harness Rules` 끝 구역을 룰 제목 집합으로 가른다**(설계 검증 N4 에서 감수했던 판) — 룰 제목 집합에 `## Testing` · `## Delivery`
+  · `## Git Safety` 같은 흔한 제목이 있어 설치자가 파일 끝에 붙인 절이 update · `uninstall --cli` 에서 라이브에서 빠졌다(적대적 리뷰
+  F1 실측, main 은 남긴다). 제목 목록을 좁히는 것도 같은 경우를 다른 제목으로 남길 뿐이라 마커로 바꿨다(결정 1).
 - **Codex 의 경로 룰을 포인터 · 스킬로** — 실 Codex 로 재기 전에는 넣지 않는다(#944 §열린 질문).
 
 ## Consequences
@@ -57,13 +65,17 @@
   지금 원소는 그 실행이 `.agents/rules/` 를 다 썼을 때만 포인터의 근거가 되고, OpenCode 단독 설치에는 원소가 없다
   (`tests/resident-reach-4cli.test.ts`).
 - 집합이 바뀌는 실행은 새 경로 없이 다음 update 에 수렴한다. 그 사이 OpenCode 가 룰을 **두 번** 읽는 창(포인터 설치본에 `install --cli
-  codex` · opencode 를 안 고른 실행)이 있다 — 0번인 창은 없다(설계 §2 D4 표 · `tests/agents-md-per-cli-944.test.ts`).
+  codex` · opencode 를 안 고른 실행 · antigravity 를 안 고른 실행)이 있다 — 하네스가 쓴 파일에서 0번인 창은 없다(설계 §2 D4 표 ·
+  `tests/agents-md-per-cli-944.test.ts`). 남는 0번은 아래 감수 항목들이다.
 - 기존 설치본의 첫 update 는 절 위치만 바꾼다. 절 모델 백업 규칙(파일 단위 sha)은 그대로라 `## Project Context` 를 채운 설치자는 그
   update 에서 `AGENTS.md` 백업 하나를 받는다.
-- (감수) D1 뒤 파일 끝 = `## Harness Rules` 구역이다. 설치자가 룰 **뒤에** 룰 제목과 같은 `## ` 절을 쓰면 하네스 것으로 읽혀 라이브에서
-  빠진다(파일 백업에는 남는다). 다른 이름의 절은 다음 update 가 룰 앞으로 옮긴다.
+- (감수) `rules` 블록 **안**에 설치자가 쓴 줄은 마커 안 편집이라 다음 update 에 라이브에서 빠진다(파일 백업에는 남는다) — 앵커 블록과
+  같은 규약이다(ADR-095 D2). 블록 끝 뒤에 쓴 절은 남는다(결정 1).
 - (감수) 포인터가 설치자 원소에 기대는 경우, 설치자가 그 원소를 지우면 다음 update 까지 OpenCode 가 룰을 못 받는다. 글롭은 설치자의
   Antigravity 전용 룰(`.agents/rules/my-ide.md`)도 OpenCode 로 가져온다. OpenCode 는 `.agents/rules/*.md` 의 frontmatter(`trigger: …`)
   줄을 본문으로 함께 읽는다.
-- (감수) 첫 접촉 블록을 설치자가 고쳐 블록이 `kept` 로 굳으면 그 내용이 굳는다 — 옛 인라인과 원소가 함께 남으면 두 번, 포인터가 굳은
-  뒤 원소가 걷히면 0번도 가능하다(ADR-095 D2 "마커 안 편집은 보장 밖"). 복구 = `--with agents-md:agents` 재설치.
+- (감수) 첫 접촉 블록을 설치자가 고쳐 블록이 `kept` 로 굳으면 그 내용이 굳는다 — 옛 인라인과 원소가 함께 남으면 두 번 읽는다
+  (ADR-095 D2 "마커 안 편집은 보장 밖"). 위치 안내로 굳은 뒤 Antigravity 가 빠지면(`uninstall --cli antigravity`) `.agents/rules/` 가
+  함께 사라져 OpenCode 가 0번이고, update 는 굳은 블록을 바꾸지 않는다. 복구 = `--with agents-md:agents` 재설치.
+- (감수) `AGENTS.md` 가 위치 안내인데 클론에 `.agents/` 가 없으면(설치자가 그 폴더를 VCS 에서 뺀 경우) `update` 전까지 OpenCode 가 룰을
+  0번 받고, 그 상태에서는 Antigravity 도 룰이 없다(적대적 리뷰 N-1 — `update` 가 되살린다).

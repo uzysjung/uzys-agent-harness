@@ -33,6 +33,11 @@ Antigravity 가 `AGENTS.md` 를 24,000 B 에서 잘라도, **설치자가 쓴 �
 - 첫 접촉 블록 모델(설치자 파일에 하네스 블록만 넣는 경우)도 블록 안 순서가 같다 — 블록 안에서 룰이 마지막.
 - `RULES_NOTE` 의 "이 문서에 이어 쓰거나" 를 "이 절 **위에** `## ` 절로 쓰거나" 로 바꾼다. 이어 쓴 절은 다음 update 가
   룰 앞으로 옮기지만, 그 사이에는 잘리는 자리에 있다.
+- (적대적 리뷰 F1) `## Harness Rules` 의 하네스 몫(안내 · 인라인 룰 · 위치 안내)을 `rules` 마커 블록으로 감싼다. 그 절이 파일
+  끝이라 설치자가 끝에 붙인 `## ` 절이 그 절 안에 놓이는데, 룰 제목 집합(`## Testing` · `## Delivery` · `## Git Safety` …)으로
+  가르면 같은 제목의 설치자 절이 하네스 것으로 읽혀 라이브에서 빠진다. 블록이 있는 파일에서는 **블록 안 = 하네스 · 블록 끝 뒤의
+  `## ` = 제목과 무관하게 설치자**(`headingOwner` — 병합 · uninstall 재렌더 · uninstall 걷기가 같은 판정). 블록이 없는 옛 판 파일
+  (`## Harness Rules` 가 중간)은 지금의 제목 판정 그대로. 첫 접촉 블록 안에서는 이 마커를 벗긴다(블록 안에서 블록을 열지 않는다).
 
 효과: Codex 가 섞인 집합에서 Antigravity 가 잘라도 잘리는 것은 룰 본문의 뒷부분 — `.agents/rules/` 에 있는 사본 — 뿐이다.
 Codex 가 32 KiB 에서 멈출 때도 설치자 절 대신 룰 뒷부분이 빠진다.
@@ -62,7 +67,7 @@ Codex 가 32 KiB 에서 멈출 때도 설치자 절 대신 룰 뒷부분이 빠�
 |---|---|---|
 | codex 포함(어느 조합이든) | 인라인(현행) — D1 로 맨 끝 | `AGENTS.md` 인라인 |
 | opencode + antigravity, 위 1~4 참(대개 update · 둘을 함께 고른 install) | **본문 없이 위치 안내 한 문단** | **`opencode.json` `instructions` 의 `.agents/rules/*.md`** |
-| opencode + antigravity, 위 2~4 중 하나 거짓(한쪽만 고른 install · `uninstall --cli codex` 재렌더 · `opencode.json` 파싱 실패 · `--without` 로 원소 제외) | 인라인 | `AGENTS.md` 인라인 |
+| opencode + antigravity, 위 2~4 중 하나 거짓(한쪽만 고른 install · `uninstall --cli codex` 재렌더 · `opencode.json` 파싱 실패 · `--without` 로 원소 제외) | 인라인 | `AGENTS.md` 인라인(원소가 남아 있으면 글롭도 — 다음 update 까지 두 번) |
 | opencode 만 | 인라인(현행) | `AGENTS.md` 인라인 — `.agents/rules/` 가 없다(#300) |
 | antigravity 만 | 절 없음(현행) | — |
 
@@ -76,7 +81,9 @@ OpenCode 공식: `instructions` 의 파일 · 글롭은 "combined with your AGEN
 
 **쓰기 주체는 늘리지 않는다**(검증 B1-c — 한 실행에서 같은 파일을 두 번 `writeShared` 하면 앞 몫이 사라진다). opencode 변환
 (`runOpencodeTransform`, opencode ∈ 이번 선택일 때만 돈다)이 지금 렌더하는 `mcp.<name>` 옆에 원소 키를 **조건부로** 더한다:
-antigravity ∈ 이번 선택 ∧ codex ∉ `AGENTS.md` 집합. `runCliTransforms` 가 `AGENTS.md` 집합을 opencode 변환 **전에** 계산해
+antigravity ∈ `AGENTS.md` 집합(선택 ∪ 기록) ∧ codex ∉ 그 집합 — `renderedKeyIds` 와 같은 조건(적대적 리뷰 F2: "이번 선택" 으로
+두면 antigravity 를 안 고른 부분 실행이 원소를 걷고, 위치 안내로 얼어붙은 첫 접촉 블록이 OpenCode 를 0번으로 만든다). 그 부분
+실행의 `AGENTS.md` 는 D2 3번이 거짓이라 인라인 — 두 번 읽고 다음 update 에 한 번으로 모인다. `runCliTransforms` 가 `AGENTS.md` 집합을 opencode 변환 **전에** 계산해
 넘긴다. 변환은 쓰기 뒤 원소가 디스크에 있는지를 보고하고, 그 값이 D2 의 4번이다 — `runAgentsMdTransform` 이 인자로 받는다.
 `uninstall --cli` 재렌더는 `opencode.json` 을 쓰지 않으므로 늘 4번이 거짓 → 인라인.
 
@@ -88,7 +95,7 @@ antigravity ∈ 이번 선택 ∧ codex ∉ `AGENTS.md` 집합. `runCliTransform
 - **설치자가 이미 같은 문자열을 갖고 있으면**(기록 없이 배열에 있음) 하네스 몫으로 적지 않는다 — 빼지도 않는다(ADR-097 ⓑ).
 - 파싱 실패 = 지금 json-keys 와 같이 쓰지 않고 알린다 → 원소 부재 → D2 인라인.
 - `--without` 로 그 키를 빼면 원소 부재 → D2 인라인. `renderedKeyIds`(`src/key-ids.ts`)가 opencode 몫으로 새 키 id 를
-  같은 조건(antigravity ∈ 선택 ∧ codex ∉ 집합)으로 내야 `--without` 이 그 id 를 받는다(재검증 N6).
+  같은 조건(antigravity ∈ 집합 ∧ codex ∉ 집합)으로 내야 `--without` 이 그 id 를 받는다(재검증 N6).
 - 원소는 값이 곧 정체라 "편집" 이 없다 — 문자열을 고치면 하네스 원소 삭제 + 설치자 원소 추가로 읽히고, 다음 실행이 하네스
   원소를 되살린다(ADR-099 R1). 빼는 길은 `--without` 하나다(재검증 N7).
 
@@ -97,9 +104,10 @@ antigravity ∈ 이번 선택 ∧ codex ∉ `AGENTS.md` 집합. `runCliTransform
 | 바뀜 | 그 실행의 `AGENTS.md` | `instructions` 원소 | OpenCode 읽기 → 다음 update |
 |---|---|---|---|
 | opencode 설치본에 `install --cli antigravity` | 인라인(2번 거짓) | 그대로(없음) | 1회 → 포인터 · 원소 생김 |
-| antigravity 설치본에 `install --cli opencode --track X` | 인라인(3번 거짓) | 그대로(없음 — 변환이 조건 3 거짓이라 안 더함) | 1회(X∪Y 인라인) → 포인터 |
+| antigravity 설치본에 `install --cli opencode --track X` | 인라인(3번 거짓) | **생긴다**(antigravity 가 기록에 있다 — F2) | 2회(X∪Y 인라인 + 글롭) → 포인터 |
 | opencode+antigravity 에 `install --cli codex` | 인라인(1번 거짓) | **남는다**(opencode 변환 미실행) | **2회**(인라인 + 글롭) → update 가 원소를 걷어 1회 |
 | 포인터 설치본에서 opencode ∉ 선택인 모든 실행(`install --cli claude` · `--reinstall` 의 부분 선택 · `uninstall --track` 재렌더 등, 재검증 N4) | 인라인(2번 거짓) | 남는다 | 2회 → update 가 포인터로 되돌린다 |
+| 포인터 설치본에서 opencode ∈ · antigravity ∉ 선택(`install --cli opencode`, F2) | 인라인(3번 거짓) — 얼어붙은 첫 접촉 블록이면 위치 안내 그대로 | **남는다**(antigravity 가 기록에 있다) | 2회(얼어붙은 블록이면 1회 — 글롭) → 포인터 |
 | `uninstall --cli codex` (oc+ag 남음) | 인라인(재렌더, 4번 거짓) | 그대로(없음) | 1회 → 포인터 |
 | `uninstall --cli antigravity` (oc 남음) | 인라인 | 남는다(폴더는 사라져 빈 매치) | 1회 → update 가 원소를 걷는다 |
 | `uninstall --cli opencode` | 남는 집합대로 | 기록 몫을 걷는다(현행 `stripSharedFiles`) | — |
@@ -127,6 +135,7 @@ antigravity ∈ 이번 선택 ∧ codex ∉ `AGENTS.md` 집합. `runCliTransform
 | D2 · D3 — opencode+antigravity 에서 `AGENTS.md` 에 룰 본문 없음 · `instructions` 에 원소 있음 · 실재 파일 매치 | 설치 테스트 + `resident-reach-4cli` 갱신(OpenCode 도달 = `instructions` 글롭이 실재 `.agents/rules/*.md` 를 가리킴) |
 | D3 — 설치자 원소 보존 · 파싱 실패 시 인라인 | 어댑터 단위 테스트(같은 문자열 선점 · 다른 원소 · 깨진 JSON) |
 | D4 — 표의 네 바뀜 | uninstall --cli · update 테스트(남는 집합 렌더와 원소 동시 판정) |
+| D1(F1) — 파일 끝에 붙인 룰 제목 절(`## Testing` · `## Git Safety`)이 update · `uninstall --cli antigravity` · uninstall 뒤에 남는다 · 옛 판(블록 없음)은 제목 판정 | 실설치 테스트 + 병합 · 걷기 단위 테스트, 음성 대조(마커 무시 → red) |
 | OpenCode 가 `.agents/rules/*.md` 를 실제로 읽는다 | 실 OpenCode(Docker realcli 이미지)에서 해석된 instructions 를 확인 — 모델 호출 없이 가능한 명령으로. 없으면 "미검증" 으로 보고 |
 
 ### D6. 결정 기록과 함께 고칠 문서 · 테스트
@@ -151,12 +160,17 @@ antigravity ∈ 이번 선택 ∧ codex ∉ `AGENTS.md` 집합. `runCliTransform
 - (감수) `install --cli codex` 를 oc+ag 설치본에 더한 뒤 다음 update 까지 OpenCode 가 룰을 두 번 읽는다(D4 3행).
 - (감수, 검증 N3) 포인터가 설치자 원소에 기대는 경우, 설치자가 그 원소를 지우면 다음 update 까지 OpenCode 가 룰을 못 받는다.
   하네스 원소도 설치자가 지우면 같다.
-- (감수, 검증 N4) D1 뒤 파일 끝 = `## Harness Rules` 구역이다. 설치자가 룰 **뒤에** 룰 제목과 같은 `## ` 절(예 `## Git Policy`)을
-  쓰면 그 절은 하네스 것으로 읽혀 라이브에서 빠진다(파일 백업에는 남는다). 안내문이 "이 절 위에" 라고 한다. 인라인 룰을 마커로
-  감싸 위치 대신 마커로 가르는 구조는 이번 범위 밖.
+- (검증 N4 → 적대적 리뷰 F1 에서 감수 철회) D1 뒤 파일 끝 = `## Harness Rules` 구역이다. 제목으로 가르면 설치자가 끝에 붙인
+  `## Testing` 같은 절이 라이브에서 빠진다(룰 제목 집합이 흔한 제목을 포함한다 — 실측). D1 의 `rules` 마커 블록으로 닫았다 —
+  블록 끝 뒤는 제목과 무관하게 설치자 것이다. 남는 것: 블록 **안**에 설치자가 쓴 줄은 마커 안 편집이라 보장 밖이다(앵커 블록과 같다,
+  ADR-095 D2 — 파일 백업에는 남는다).
 - (감수, 검증 N5 · 재검증 N2) 첫 접촉 블록 안을 설치자가 고쳐 블록이 `kept` 로 고정되면 그 블록 내용이 굳는다 — 옛 인라인과
-  원소가 함께 남으면 두 번, 포인터가 굳은 뒤 원소가 걷히면(`install --cli opencode` 만 돈 경우) **0번**도 가능하다
-  (ADR-095 D2 "마커 안 편집은 보장 밖"). 복구 = `--with agents-md:agents` 재설치. 화면의 `kept` 안내에 이 결과를 적을지는 구현 때 본다.
+  원소가 함께 남으면 두 번 읽는다(ADR-095 D2 "마커 안 편집은 보장 밖"). 복구 = `--with agents-md:agents` 재설치. 포인터가 굳은 뒤
+  원소가 걷혀 **0번**이 되던 경우(`install --cli opencode` 만 돈 경우)는 D3 원소 조건을 집합 기준으로 바꿔 닫았다(적대적 리뷰 F2) —
+  원소는 antigravity 가 집합을 떠나거나 codex 가 들어올 때만 걷힌다. **남는 0번(감수)**: 위치 안내로 굳은 블록에서 antigravity 가
+  떠나면(`uninstall --cli antigravity`) `.agents/rules/` 가 함께 사라져 OpenCode 가 0번이고, update 도 굳은 블록을 안 바꾸므로
+  복구(`--with agents-md:agents` 재설치)까지 이어진다(단위 실측 2026-11-03). main 도 대칭인 0번이 있다 — antigravity 단독 때 굳은
+  블록에 opencode 를 더한 경우(적대적 리뷰 F2 counter-case, main 은 영구 0번 · 이 판은 다음 update 에 6).
 - (재검증 N9) ADR-103 결정 2 의 "`uninstall --cli` 재렌더 = 다음 update 와 같은 바이트" 가 포인터 적격 설치본에서 깨진다(재렌더
   인라인 → update 포인터). 백업은 생기지 않는다(`withRerender` 가 sha 를 잇는다). 새 ADR 에 정정을 싣고, 바이트 동일을 단언하는
   테스트가 있으면 그 경우를 뺀다.

@@ -96,7 +96,7 @@ export const RULES_INSTRUCTION_KEY = `instructions[=${RULES_INSTRUCTION}]`;
  * `opencode.json` 의 하네스 몫 전체 — 서버 키(`mcp.<name>`) + 조건부로 룰 원소. 변환(쓰기)과 `--without` 이 받는 키 id
  * (`key-ids.ts`)가 같은 함수로 잰다 — 둘이 갈리면 `--without` 이 그 원소를 못 받는다.
  *
- * @param rulesInstruction 원소를 더할지 — `runCliTransforms` 가 정한다(Antigravity ∈ 이번 선택 ∧ Codex ∉ `AGENTS.md` 집합).
+ * @param rulesInstruction 원소를 더할지 — `runCliTransforms` 가 정한다(Antigravity ∈ `AGENTS.md` 집합(선택 ∪ 기록) ∧ Codex ∉ 그 집합).
  */
 export function renderOpencodePortion(
   mcp: McpJson,
