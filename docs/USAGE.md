@@ -120,6 +120,19 @@ Codex, OpenCode, and Antigravity read the **same** `AGENTS.md` and `.agents/skil
 
 The install leaves `CLAUDE.md` (Claude Code) or `AGENTS.md` (Codex / OpenCode / Antigravity) with fill-in sections about your project, each carrying a `<!-- FILL: … -->` prompt. Ask your agent to run the `audit-harness-fit` skill once: its populate mode reads your repository and fills those sections with what it finds there. You can also paste each prompt to your agent, or write the sections by hand. The harness never fills them itself — it does not write unverified facts about your project into your repository.
 
+### Reasoning effort
+
+The installed principles tell the agent to keep going through routine steps and to check its work before calling it done. How strongly a model acts on that also depends on its reasoning effort, a CLI setting that no instruction file can change. Model vendors recommend adjusting effort before adding more instructions ([research](research/working-principles-2026-11.md)):
+
+- **Raise it** when the agent stops to confirm a routine plan, asks what it could find out from the project, stops after one part of a multi-part task, or reports done without running the checks.
+- **Lower it** when the agent re-checks or reviews far more than the change needs, or starts reviewers nobody asked for.
+
+| CLI | Where to set it |
+|---|---|
+| Claude Code | `/effort` — low, medium, high, xhigh or max |
+| Codex | `model_reasoning_effort` in `~/.codex/config.toml` |
+| OpenCode | the model's `options.reasoningEffort` in `opencode.json`, or switch variants with the `variant_cycle` key |
+
 ### What the harness writes
 
 | Path | Purpose |

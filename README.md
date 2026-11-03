@@ -28,7 +28,7 @@ Every instruction the agent reads each session takes up context, and as they pil
 
 ### 4. Several viewpoints and several agents balance speed, cost, and quality
 
-Self-checks and independent review are kept apart. Important changes are reviewed by an agent that didn't build them, and dev tracks also get a skill that examines the work from several user perspectives (personas). Dev tracks also get skills that give each task a fitting model and reasoning effort, light work fast and cheap and important work done carefully, and, if you have that vendor's CLI, let a model from another vendor give a second opinion.
+Self-checks and independent review are kept apart. Important changes are reviewed by an agent that didn't build them, and dev tracks also get a skill that examines the work from several user perspectives (personas). Dev tracks also get skills that give each task a fitting model and reasoning effort, light work fast and cheap and important work done carefully, and, if the Codex or Antigravity CLI is installed, let a model from another vendor (OpenAI or Google) give a second opinion.
 
 One command installs the rules and skills that carry these four ideas, plus third-party skills for your stack (from official repositories, or picked after checking their source, popularity, and install path). Your `CLAUDE.md` gets one block marked with comments and nothing else is touched. On uninstall, shared files such as `CLAUDE.md` and `.mcp.json` lose only the harness's part. Works with Claude Code, Codex, OpenCode, and Antigravity; the hook that blocks file edits and the reviewer agent run on Claude Code.
 
