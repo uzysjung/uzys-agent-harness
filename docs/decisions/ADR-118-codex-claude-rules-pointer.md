@@ -1,8 +1,8 @@
 # ADR-118: Claude Code + Codex 조합의 경로 룰은 `AGENTS.md` 에서 `.claude/rules/<룰>.md` 를 가리킨다
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-11-03
-- PR: (머지 때 채운다)
+- PR: #954
 - Issue: #953
 - Amends: ADR-117 — 결정 1 의 ③("Antigravity 가 이번 룰 전부를 `.agents/rules/` 에 썼다")을 "이번 실행이 이번 룰 전부를 한 룰 폴더에 썼다"
   로 넓힌다 · `uninstall --cli` 재렌더 대상에 Claude Code 를 더한다

@@ -168,6 +168,18 @@ describe("§2 — 실행마다 Codex 가 경로 룰을 받는 수 (Claude Code +
     everyPathRuleReachesCodex(["tooling", "csr-supabase"], "update");
   });
 
+  it("#955 — claude+codex[tooling] 에 두 CLI 를 다 다시 고르고 트랙을 더해도 이전 트랙의 경로 룰이 Codex 에 남는다", () => {
+    install(["claude", "codex"], ["tooling"]);
+    install(["claude", "codex"], ["csr-fastapi"]);
+    everyPathRuleReachesCodex(
+      ["tooling", "csr-fastapi"],
+      "install --cli claude --cli codex --track csr-fastapi",
+    );
+    update();
+    expect(pointerFolder()).toBe(".claude/rules");
+    everyPathRuleReachesCodex(["tooling", "csr-fastapi"], "update");
+  });
+
   it("5행 — claude+codex 에 install --cli antigravity → Antigravity 가 이번에 다 썼으면 `.agents/rules/` 포인터(우선)", () => {
     install(["claude", "codex"]);
     install(["antigravity"]);
