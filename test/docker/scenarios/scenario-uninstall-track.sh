@@ -7,9 +7,10 @@
 # 검증:
 #   ① csr-fastapi 만 가져오는 룰 · 스킬이 `.claude/` · `.agents/` 두 자리에서 사라진다
 #   ② 공통 룰 · tooling 룰 · 방법론 스킬 · 훅 · 앵커 · `.codex/` 는 그대로다
-#   ③ `AGENTS.md` 에 `## UI Components` 가 없고 설치자 문단은 그대로다
+#   ③ `AGENTS.md` 에 UI 룰(`## UI Components` 본문 · `ui-components.md` 포인터 줄)이 없고 설치자 문단은 그대로다
 #   ④ 설치 기록 트랙이 tooling 하나이고 `list` 도 같은 말을 한다(메타파일이 트랙을 되살리지 않는다)
-#   ⑤ 이어서 update 해도 백업 0 · 디스크 변화 0
+#   ⑤ 이어서 update 해도 백업 0 · `AGENTS.md` 룰 블록 밖 디스크 변화 0 — 트랙 제거의 재렌더는 경로 룰을 본문으로 쓰고
+#     update 가 `.claude/rules/` 포인터로 되돌린다(ADR-118 감수 ⓓ) · 그 포인터는 실재 파일을 가리킨다
 #   ⑥ 대조군 — 마지막 트랙 `--track tooling` 은 거절되고 아무것도 안 바뀐다
 #   (미리보기) `--dry-run` 은 빼는 이름을 말하고 디스크를 바꾸지 않는다
 
@@ -46,11 +47,13 @@ for p in "${GONE[@]}" "${KEPT[@]}" AGENTS.md; do
     exit 1
   fi
 done
-if ! grep -qF '## UI Components' AGENTS.md; then
-  echo "FAIL: AGENTS.md 에 ## UI Components 가 없다 — ③ 의 대조군이 없다"
+# UI 룰은 `AGENTS.md` 에 본문 절이나 포인터 줄로 들어간다(ADR-118 — claude+codex 는 `.claude/rules/` 포인터)
+UI_RULE='^## UI Components$|rules/ui-components\.md`$'
+if ! grep -qE "${UI_RULE}" AGENTS.md; then
+  echo "FAIL: AGENTS.md 에 UI 룰(본문 · 포인터)이 없다 — ③ 의 대조군이 없다"
   exit 1
 fi
-echo "✓ 전제 확인 — 빠질 것 · 남을 것 · AGENTS.md 의 ## UI Components 존재"
+echo "✓ 전제 확인 — 빠질 것 · 남을 것 · AGENTS.md 의 UI 룰 존재"
 
 MARK="우리 팀 결제 정산 배치. 빌드는 make build. $$"
 awk -v mark="${MARK}" '
@@ -119,12 +122,12 @@ done
 echo "✓ csr 전용 룰 · 스킬 두 자리 회수 · 공통 룰 · tooling 룰 · 방법론 스킬 · 훅 · 앵커 · .codex/ 보존"
 
 # --- ③ ---
-if grep -qF '## UI Components' AGENTS.md; then
-  echo "FAIL: AGENTS.md 에 ## UI Components 가 남았다"
+if grep -qE "${UI_RULE}" AGENTS.md; then
+  echo "FAIL: AGENTS.md 에 UI 룰(본문 · 포인터)이 남았다"
   exit 1
 fi
 grep -qF "${MARK}" AGENTS.md || { echo "FAIL: AGENTS.md 의 설치자 문단이 사라졌다"; exit 1; }
-echo "✓ AGENTS.md — ## UI Components 제거 · 설치자 문단 보존"
+echo "✓ AGENTS.md — UI 룰 제거 · 설치자 문단 보존"
 
 # --- ④ ---
 TRACKS=$(jq -c '.spec.tracks' "${PROJ}/.uzys-agent-harness/.harness-install.json")
@@ -142,7 +145,10 @@ echo "✓ 기록 트랙 = [\"tooling\"] · list 도 tooling"
 
 # --- ⑤ ---
 BACKUPS_BEFORE=$(find . -name '*.backup-*' | sort)
-AFTER=$(snapshot)
+# `AGENTS.md` 의 룰 블록(마커부터 끝)은 비교에서 뺀다 — 재렌더(본문) → update(포인터)로 바뀌는 자리다(ADR-118 감수 ⓓ)
+before_rules() { awk '/<!-- uzys-harness:rules:start -->/ { exit } { print }' AGENTS.md; }
+snapshot_outside() { snapshot | grep -v ' \./AGENTS\.md$'; before_rules | sha256sum; }
+AFTER=$(snapshot_outside)
 agent-harness update >/tmp/uninstall-track-upd2.txt 2>&1 || {
   echo "FAIL: 트랙 제거 뒤 update 가 실패했다"
   tail -30 /tmp/uninstall-track-upd2.txt
@@ -152,14 +158,22 @@ if [[ "$(find . -name '*.backup-*' | sort)" != "${BACKUPS_BEFORE}" ]]; then
   echo "FAIL: 트랙 제거 뒤 update 가 백업을 만들었다"
   exit 1
 fi
-if [[ "$(snapshot)" != "${AFTER}" ]]; then
-  echo "FAIL: 트랙 제거 뒤 update 가 디스크를 바꿨다"
-  diff <(echo "${AFTER}") <(snapshot) || true
+if [[ "$(snapshot_outside)" != "${AFTER}" ]]; then
+  echo "FAIL: 트랙 제거 뒤 update 가 AGENTS.md 룰 블록 밖 디스크를 바꿨다"
+  diff <(echo "${AFTER}") <(snapshot_outside) || true
   exit 1
 fi
-echo "✓ 이어서 update — 백업 0 · 디스크 변화 0"
+# 남은 tooling 의 경로 룰(cli-development)이 Codex 에 닿는다 — 포인터면 그 파일이 실재한다
+if grep -qF '→ `.claude/rules/cli-development.md`' AGENTS.md; then
+  [[ -f .claude/rules/cli-development.md ]] || { echo "FAIL: 포인터가 없는 파일을 가리킨다"; exit 1; }
+elif ! grep -qE '^## Shell Safety$' AGENTS.md; then
+  echo "FAIL: 트랙 제거 뒤 update 의 AGENTS.md 에 cli-development 가 본문도 포인터도 없다"
+  exit 1
+fi
+echo "✓ 이어서 update — 백업 0 · AGENTS.md 룰 블록 밖 디스크 변화 0 · cli-development 도달"
 
 # --- ⑥ 대조군 ---
+AFTER_UPDATE=$(snapshot)
 set +e
 agent-harness uninstall --track tooling >/tmp/uninstall-track-last.txt 2>&1
 RC2=$?
@@ -168,7 +182,7 @@ if [[ "${RC2}" -eq 0 ]]; then
   echo "FAIL: 마지막 트랙 제거가 성공했다 — 전량 삭제 경로가 둘이 된다"
   exit 1
 fi
-if [[ "$(snapshot)" != "${AFTER}" ]]; then
+if [[ "$(snapshot)" != "${AFTER_UPDATE}" ]]; then
   echo "FAIL: 거절했는데 디스크가 바뀌었다"
   exit 1
 fi
