@@ -326,11 +326,34 @@ describe("opencode.json — 설치자 설정은 그대로, 하네스 MCP 키만 
     expect(live.theme).toBe("mine");
     expect(live.mcp.mine).toEqual(INSTALLER_OPENCODE.mcp.mine);
     expect(live.mcp.context7).toMatchObject({ type: "local" });
+    // `instructions` 는 OpenCode 단독 설치에서 하네스 몫이 아니다 — 룰 원소는 Antigravity 와 함께일 때만(#944, 아래)
     for (const key of ["$schema", "agent", "permission", "instructions", "plugin", "command"]) {
       expect(live, `${key} 는 하네스 몫이 아니다`).not.toHaveProperty(key);
     }
     expect(backups()).toEqual([]);
     expect(report.opencode?.opencodeJson).toMatchObject({ action: "updated", kept: [] });
+  });
+
+  it("#944 opencode+antigravity 첫 설치: 하네스 몫이 `instructions` 의 룰 원소 하나로 넓어진다 — 템플릿 기본값은 여전히 끼워 넣지 않는다 · 재설치 · update 바이트 동일", () => {
+    put("opencode.json", `${JSON.stringify(INSTALLER_OPENCODE, null, 2)}\n`);
+    install(["opencode", "antigravity"]);
+    const live = JSON.parse(read("opencode.json")) as Record<string, unknown>;
+    expect(live.model).toBe(INSTALLER_OPENCODE.model);
+    expect(live.instructions).toEqual([".agents/rules/*.md"]);
+    for (const key of ["$schema", "agent", "permission", "plugin", "command"]) {
+      expect(live, `${key} 는 하네스 몫이 아니다`).not.toHaveProperty(key);
+    }
+    const keys = (readInstallLog(projectDir)?.portions ?? [])
+      .filter((p) => p.path === "opencode.json")
+      .map((p) => p.key);
+    expect(keys).toEqual(
+      expect.arrayContaining(["instructions[=.agents/rules/*.md]", "instructions[]"]),
+    );
+    const first = read("opencode.json");
+    install(["opencode", "antigravity"]);
+    update();
+    expect(read("opencode.json")).toBe(first);
+    expect(backups()).toEqual([]);
   });
 
   it("같은 이름의 설치자 서버는 설치자 값이 이긴다 · 파일이 없으면 템플릿 바탕 + 하네스 서버로 만든다", () => {

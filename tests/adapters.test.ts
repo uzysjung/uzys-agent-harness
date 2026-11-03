@@ -287,6 +287,91 @@ describe("json-keys — .mcp.json · opencode.json · .claude/settings.json", ()
   });
 });
 
+/**
+ * #944 (ADR-116) — 문자열 동치 배열 원소(`instructions[=<값>]`). `opencode.json` 의 `instructions` 에 룰 원소 하나를 하네스 몫으로
+ * 둔다 — 설치자 원소는 순서째 그대로, 같은 문자열을 설치자가 먼저 갖고 있으면 그것은 설치자 것이다(Q3).
+ */
+describe("json-keys — 배열 원소 키 (#944)", () => {
+  const js = ADAPTERS["json-keys"];
+  const KEY = "instructions[=.agents/rules/*.md]";
+  const render = new Map<string, unknown>([
+    ["mcp.context7", { type: "local", command: ["npx", "x"] }],
+    [KEY, ".agents/rules/*.md"],
+  ]);
+
+  it.each([
+    ["instructions 없음", '{"model":"m"}'],
+    ["설치자 원소가 있다", '{"instructions":["docs/SPEC.md","CONTRIBUTING.md"]}'],
+    ["설치자의 빈 배열 — 컨테이너를 걷지 않는다", '{"instructions":[]}'],
+  ])("upsert∘strip = 원본(파싱 동치) — %s", (_, x) => {
+    const u = upsertOk(js, x, render);
+    expect(JSON.parse(u.text).instructions).toContain(".agents/rules/*.md");
+    const s = stripOk(js, u.text, u.portions);
+    expect(JSON.parse(s.text)).toEqual(JSON.parse(x));
+  });
+
+  it("없으면 끝에 붙이고 기록한다 · 배열이 없었으면 컨테이너 키도 기록한다 · 설치자 원소의 순서는 그대로", () => {
+    const made = upsertOk(js, "{}", render);
+    expect(JSON.parse(made.text).instructions).toEqual([".agents/rules/*.md"]);
+    expect([...made.portions.keys()]).toEqual(expect.arrayContaining([KEY, "instructions[]"]));
+    const mine = upsertOk(js, '{"instructions":["b.md","a.md"]}', render);
+    expect(JSON.parse(mine.text).instructions).toEqual(["b.md", "a.md", ".agents/rules/*.md"]);
+    expect([...mine.portions.keys()]).not.toContain("instructions[]");
+    // 키 id — 이 문자열로 `--without` 한다
+    expect(keyId("opencode.json", KEY)).toBe("opencode:instructions[=.agents/rules/*.md]");
+    expect(keyId("opencode.json", "instructions[]")).toBeNull();
+  });
+
+  it("설치자가 같은 문자열을 먼저 갖고 있으면 하네스 몫으로 적지 않는다 — strip 도 빼지 않는다(Q3)", () => {
+    const x = '{"instructions":[".agents/rules/*.md"]}';
+    const u = upsertOk(js, x, render);
+    expect(u.portions.has(KEY)).toBe(false);
+    expect(u.kept).toContain(KEY);
+    expect(JSON.parse(u.text).instructions).toEqual([".agents/rules/*.md"]);
+    expect(JSON.parse(stripOk(js, u.text, u.portions).text).instructions).toEqual([
+      ".agents/rules/*.md",
+    ]);
+  });
+
+  it("렌더에서 빠지면 기록된 원소만 걷는다 — 설치자가 뒤에 같은 문자열을 또 적었으면 그 하나는 남는다", () => {
+    const u = upsertOk(js, '{"instructions":["docs/SPEC.md"]}', render);
+    const without = new Map([...render].filter(([k]) => k !== KEY));
+    const gone = upsertOk(js, u.text, without, u.portions);
+    expect(gone.removed).toContain(KEY);
+    expect(JSON.parse(gone.text).instructions).toEqual(["docs/SPEC.md"]);
+    const dup = JSON.stringify({
+      instructions: ["docs/SPEC.md", ".agents/rules/*.md", ".agents/rules/*.md"],
+    });
+    const once = upsertOk(js, dup, without, u.portions);
+    expect(JSON.parse(once.text).instructions).toEqual(["docs/SPEC.md", ".agents/rules/*.md"]);
+  });
+
+  it("`instructions` 가 배열이 아니면(설치자 값) 쓰지 않고 kept · 파싱 실패면 한 바이트도 쓰지 않는다", () => {
+    const u = upsertOk(js, '{"instructions":"docs/SPEC.md"}', render);
+    expect(JSON.parse(u.text).instructions).toBe("docs/SPEC.md");
+    expect(u.kept).toContain(KEY);
+    expect(u.portions.has(KEY)).toBe(false);
+    expect(js.upsert("{ nope", { render, recorded: fresh, excluded: none })).toMatchObject({
+      ok: false,
+    });
+  });
+
+  it("excluded 면 더하지 않는다 · 기록된 원소는 걷는다(`--without`)", () => {
+    const u = upsertOk(js, "{}", render, fresh, new Set([KEY]));
+    expect(JSON.parse(u.text).instructions).toBeUndefined();
+    const added = upsertOk(js, "{}", render);
+    const out = upsertOk(js, added.text, render, added.portions, new Set([KEY]));
+    expect(JSON.parse(out.text).instructions).toBeUndefined();
+  });
+
+  it("값에 `.` · `#` 가 있어도 원소 키로 읽는다 — 훅 핸들러 · 속성 키로 잘못 자르지 않는다", () => {
+    const k = "instructions[=a.b#c.md]";
+    const u = upsertOk(js, "{}", new Map([[k, "a.b#c.md"]]));
+    expect(JSON.parse(u.text)).toEqual({ instructions: ["a.b#c.md"] });
+    expect(js.read(u.text, [k])?.has(k)).toBe(true);
+  });
+});
+
 /* ─── lines ─────────────────────────────────────────────────────────────── */
 
 describe("lines — .gitignore", () => {
