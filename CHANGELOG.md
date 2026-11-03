@@ -7,6 +7,22 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 > v26.x.x 부터 git tag versioning(CalVer, year-2000)으로 통합. CHANGELOG 도 CalVer 로 표기. v0.8.x 는 이전 npm-기반 추적.
 
+## [v26.183.0] — 2026-11-03 (Claude Code + Codex 의 경로 룰도 파일을 가리킨다)
+
+### Changed
+- **Claude Code 와 Codex 를 함께 깔면(OpenCode 없음) 특정 파일용 룰을 `.claude/rules/` 파일에서 읽는다** (#953, PR #954 · ADR-118) — `ui-components` · `cli-development` · `htmx-*-ui` 처럼 경로가 정해진 룰은 `AGENTS.md` 에 "아래 파일을 만들거나 고치기 전에 그 룰을 읽고 따른다" 목록만 남고, 그 목록이 Claude Code 가 이미 쓰는 `.claude/rules/<룰>.md` 를 가리킨다. Codex 는 그 파일을 고칠 때만 룰을 읽는다. update 로 들어온다.
+  - 근거: 실제 Claude Code + Codex 설치본에서 Codex 가 `.tsx` 를 쓰기 전에 `.claude/rules/` 의 룰을 읽었다(4/4, `docs/research/codex-rule-pointer-2026-11.md` §4차).
+  - Antigravity 까지 함께면 지금처럼 `.agents/rules/` 를 가리킨다(v26.182.0 과 같은 바이트). OpenCode 가 섞인 설치 · Codex 만 깐 설치 · 원래 있던 `AGENTS.md` 에 하네스 블록이 들어간 설치는 바뀌지 않는다.
+  - 목록은 그 실행이 그 룰 파일을 전부 썼을 때만 쓴다. 아니면 지금처럼 본문이다 — Codex 가 룰을 못 받는 실행은 없다.
+- **`uninstall --cli claude` 가 남는 `AGENTS.md` 를 다시 쓴다** (#953, PR #954) — Claude Code 룰 파일을 지운 뒤 `AGENTS.md` 의 경로 룰을 본문으로 되돌려, Codex 가 지운 파일을 가리키지 않게 한다. 지우기 전에 `AGENTS.md` 를 쓸 수 있는지 확인하고, 못 쓰면 아무것도 지우지 않고 멈춘다(전량 uninstall 과 같은 안내). `uninstall --cli antigravity` · `--track` 도 같은 확인을 거친다.
+  - Project Context 를 채운 claude + codex 설치자는 그 한 번에 `AGENTS.md` 백업 하나를 받는다. 다음 update 가 목록으로 되돌린다.
+
+### Fixed
+- **두 CLI 를 다 다시 고르고 트랙을 더해도 이전 트랙의 룰이 `AGENTS.md` 에 남는다** (#955, PR #956) — `install --cli claude --cli codex --track <새 트랙>` 은 다음 update 까지 이전 트랙의 경로 룰(예: `cli-development`)을 `AGENTS.md` 에서 뺐다. 이제 늘 기록된 트랙 전부로 쓴다.
+
+### Docs
+- README 가 각 회사의 CLI 를 Codex CLI · Antigravity CLI 로 부르고, USAGE 에 CLI 별 추론 강도 설정 안내를 더했다 (PR #952).
+
 ## [v26.182.0] — 2026-11-03 (Codex + Antigravity 의 경로 룰은 파일을 가리킨다)
 
 ### Changed
