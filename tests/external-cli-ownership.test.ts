@@ -100,6 +100,7 @@ function agents(clis: ReadonlyArray<AgentsMdCli>, baseline: ReadonlyMap<string, 
     rules: [],
     baseline,
     rulesViaInstructions: false,
+    pathRulesViaFiles: false,
   });
 }
 

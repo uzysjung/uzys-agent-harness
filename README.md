@@ -141,7 +141,7 @@ What each tool gets:
 | Tool | Rules | Skills | Hooks | Subagents | Plugins |
 |---|---|---|---|---|---|
 | Claude Code | ✓ | ✓ | ✓ | ✓ | ✓ |
-| Codex | ✓ (in `AGENTS.md`) | ✓ | session start only | — | — |
+| Codex | ✓ (in `AGENTS.md`; with Antigravity and no OpenCode, rules for specific file types are linked from `AGENTS.md` to `.agents/rules/` when the harness created `AGENTS.md`) | ✓ | session start only | — | — |
 | OpenCode | ✓ (in `AGENTS.md`; with Antigravity and no Codex, from `.agents/rules/` via `opencode.json` when the harness created `AGENTS.md`) | ✓ | — | — | — |
 | Antigravity | ✓ | ✓ | — | — | — |
 

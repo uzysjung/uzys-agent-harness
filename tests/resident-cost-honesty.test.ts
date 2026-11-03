@@ -339,6 +339,34 @@ describe("남은 틈 ① — opencode + antigravity update (#944 위치 안내)"
   });
 });
 
+// #948 (ADR-117) — Codex + Antigravity(OpenCode 없음)면 경로 룰은 `AGENTS.md` 에 본문이 아니라 `.agents/rules/<룰>.md` 를 가리키는 줄이다.
+//   상시 룰은 그 파일 안(토큰은 파일 숫자에), 경로 룰은 가리키는 파일 수 · 토큰으로 센다 — 실제로 있는 자리만 말한다.
+describe("남은 틈 ① — codex + antigravity update (#948 경로 룰 포인터)", () => {
+  it.each([
+    ["update", undefined],
+    ["--only hooks(AGENTS.md 를 다시 안 쓴다)", ["hooks"] as UpdateGroup[]],
+  ])("%s — 상시 룰은 'inside AGENTS.md' · 경로 룰은 .agents/rules 파일 수 · 토큰", (_, only) => {
+    const { projectDir, spec } = install("tooling", ["codex", "antigravity"]);
+    const agents = join(projectDir, "AGENTS.md");
+    expect(readFileSync(agents, "utf8"), "대조군: 경로 룰 포인터 판이다").toContain(
+      "→ `.agents/rules/cli-development.md`",
+    );
+    const row = updateRow(projectDir, only);
+    const planned = residentCostFor(spec).items.rules;
+    const pointed = join(projectDir, ".agents", "rules", "cli-development.md");
+    expect(planned, "대조군: 상시 룰도 있다").toBeGreaterThan(1);
+    const label = only === undefined ? "" : " (planned count)";
+    expect(row).toContain(
+      `[rules ${planned - 1} inside AGENTS.md${label} + 1 in .agents/rules ~${tokensOf(pointed)} · AGENTS.md 1 ~${tokensOf(agents)} `,
+    );
+  });
+
+  it("대조군 — Codex 단독(포인터 없음)은 '+ … in .agents/rules' 가 없다", () => {
+    const { projectDir } = install("tooling", ["codex"]);
+    expect(updateRow(projectDir)).not.toContain("in .agents/rules");
+  });
+});
+
 describe("남은 틈 ① — antigravity 단독 update", () => {
   it("룰 수·토큰은 .agents/rules 디스크(설치자 룰 포함), 앵커 행은 AGENTS.md 디스크 (ADR-103)", () => {
     const { projectDir } = install("tooling", ["antigravity"]);

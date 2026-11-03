@@ -13,6 +13,7 @@ import { beforeAll, describe, expect, it } from "vitest";
 import { CONTINUOUS_SKILLS } from "../src/external-assets.js";
 import { runInstall } from "../src/installer.js";
 import { buildManifest, resolveRules } from "../src/manifest.js";
+import { pathRulePointerTargets } from "../src/rules-port.js";
 import { CLI_BASES, type CliBase, DEFAULT_OPTIONS, TRACKS } from "../src/types.js";
 import { buildUpdateSpec } from "../src/update-mode.js";
 
@@ -77,6 +78,8 @@ const COMBOS: ReadonlyArray<ReadonlyArray<CliBase>> = [
   ["claude", "codex"],
   // #944 (ADR-116) — Codex 가 없으면 OpenCode 는 `AGENTS.md` 가 아니라 `instructions` 로 `.agents/rules/` 를 읽는다
   ["opencode", "antigravity"],
+  // #948 (ADR-117) — OpenCode 없이 Antigravity 와 함께면 Codex 의 경로 룰은 `AGENTS.md` 가 가리키는 `.agents/rules/<룰>.md` 다
+  ["codex", "antigravity"],
   [...CLI_BASES],
 ];
 const combos = new Map<string, Installed>();
@@ -129,14 +132,23 @@ beforeAll(() => {
 const RULE_DESTINATION: Record<CliBase, (f: string, inst: Installed) => boolean> = {
   // Claude Code — `.claude/rules/<name>.md`
   claude: (f) => f.startsWith(".claude/rules/"),
-  // Codex — 룰 디렉터리가 없다. `AGENTS.md` 계층이 유일한 로딩 경로다.
-  codex: (f) => f === "AGENTS.md",
+  // Codex — 룰 디렉터리가 없다. `AGENTS.md` 계층이 유일한 자동 로딩 경로다. #948 — 그 파일의 경로 룰 포인터가 가리키는
+  // `.agents/rules/<룰>.md` 는 Codex 가 그 파일을 고치기 전에 읽는다(실 Codex 15/15 — 로더가 아니라 모델이 따른다).
+  codex: (f, inst) => f === "AGENTS.md" || pointedFiles(inst).has(f),
   // OpenCode — 프로젝트 루트 `AGENTS.md` 를 자동으로 읽고, `opencode.json` 의 `instructions` 가 가리키는 파일을 함께 읽는다
   // (공식: "combined with your AGENTS.md"). #944 — Codex 가 없는 조합은 룰을 `instructions` 의 `.agents/rules/*.md` 로 받는다.
   opencode: (f, inst) => f === "AGENTS.md" || instructionFiles(inst).has(f),
   // Antigravity — `.agents/rules/*.md` 워크스페이스 룰.
   antigravity: (f) => f.startsWith(".agents/rules/"),
 };
+
+/** `AGENTS.md` 의 경로 룰 포인터가 가리키는 설치본 파일 — 없는 파일은 도달이 아니다. */
+function pointedFiles(inst: Installed): Set<string> {
+  const targets = pathRulePointerTargets(inst.text.get("AGENTS.md") ?? "").map(
+    (name) => `.agents/rules/${name}.md`,
+  );
+  return new Set(targets.filter((f) => inst.files.includes(f)));
+}
 
 /** 글롭 하나 → 정규식(`*` = 한 칸 · `**` = 여러 칸). OpenCode 의 `instructions` 상대 경로를 이 설치본 안에서 푼다. */
 function globToRegExp(glob: string): RegExp {
@@ -355,6 +367,20 @@ describe("CLI 를 함께 골라도 룰이 남는다 (파일을 공유하는 조�
       }
     });
   }
+});
+
+describe("codex+antigravity — 경로 룰은 포인터가 가리키는 파일로 (#948 · ADR-117)", () => {
+  it("탐지기 자기검증: 경로 룰 본문은 `AGENTS.md` 에 없고 포인터가 가리키는 실재 파일에 있다 · 상시 룰은 인라인", () => {
+    const inst = combos.get("codex+antigravity");
+    if (!inst) throw new Error("조합 설치 없음");
+    const agents = inst.text.get("AGENTS.md") ?? "";
+    const cli = RULE_CANARIES.find(([r]) => r === "cli-development")?.[1] ?? "<없음>";
+    const git = RULE_CANARIES.find(([r]) => r === "git-policy")?.[1] ?? "<없음>";
+    expect(agents).not.toContain(cli);
+    expect(agents).toContain(git);
+    expect([...pointedFiles(inst)]).toEqual([".agents/rules/cli-development.md"]);
+    expect(inst.text.get(".agents/rules/cli-development.md")).toContain(cli);
+  });
 });
 
 describe("각 CLI 의 배선이 실재하는 파일을 가리킨다", () => {

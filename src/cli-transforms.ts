@@ -475,6 +475,13 @@ export function runCliTransforms(params: CliTransformParams): CliTransformResult
         !agentsSet.includes("codex") &&
         opencode?.rulesViaInstructions === true &&
         wroteEveryRule(harnessRoot, projectDir, antigravity, agentsRules),
+      // #948 (ADR-117) — Codex 의 경로 룰은 Antigravity 가 이번에 쓴 `.agents/rules/<룰>.md` 를 가리키는 목록으로(실 Codex 포인터
+      // 15/15): ① Codex ∈ 집합 ② OpenCode ∉ 집합(OpenCode 의 포인터 따르기는 재지 않았다) ③ Antigravity 가 이번 룰을 전부 썼다
+      // (④ 절 모델은 변환이 본다). 하나라도 거짓이면 인라인 — 포인터는 이번 실행이 실재를 보장한 파일만 가리킨다
+      pathRulesViaFiles:
+        agentsSet.includes("codex") &&
+        !agentsSet.includes("opencode") &&
+        wroteEveryRule(harnessRoot, projectDir, antigravity, agentsRules),
       baseline,
       refreshOnly,
       // ADR-099 R2 — 기록이 이 파일을 읽는 CLI 를 깔린 것으로 말하면 없어도 만든다(26.164.0 이하 Antigravity 단독 설치본은

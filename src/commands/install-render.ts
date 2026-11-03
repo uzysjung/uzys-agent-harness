@@ -11,12 +11,13 @@ import { hasTrustEntry, tomlBasicString } from "../codex/trust-entry.js";
  */
 
 import { existsSync, readdirSync, readFileSync } from "node:fs";
-import { join, relative } from "node:path";
+import { basename, join, relative } from "node:path";
 import type { AnchorRetireResult } from "../antigravity/retire-anchor.js";
 import { CATEGORY_TITLES, type Category } from "../categories.js";
 import { CLI_DISPLAY_NAMES, targetsInclude } from "../cli-targets.js";
 import {
   anchorSurface,
+  fileTokens,
   formatResidentCostLine,
   makeResidentCost,
   type ResidentCost,
@@ -68,6 +69,7 @@ import {
 } from "../preset-recommend.js";
 import { HARNESS_ANCHOR_FILE, HARNESS_IMPORT_LINE } from "../project-claude-merge.js";
 import { residentCostFor, residentEntries } from "../resident-entries.js";
+import { pathRulePointerTargets } from "../rules-port.js";
 import type { SharedWriteResult } from "../shared-write.js";
 import { shellArg } from "../shell-arg.js";
 import type { CliBase, CliTargets, InstallSpec, OptionFlags } from "../types.js";
@@ -436,11 +438,24 @@ function residentEntriesOnDisk(
   // Codex · OpenCode 가 있으면 룰은 `AGENTS.md` 본문(인라인 — 계획 엔트리로 센다), Antigravity 만이거나 `AGENTS.md` 가 위치 안내를
   // 담았으면(#944 — Antigravity 가 직접, OpenCode 가 `instructions` 로 읽는다) `.agents/rules/` 파일이다(옛 앵커 이름은 은퇴 대상이라
   // 세지 않는다 — frontmatter 가 없어 Antigravity 가 읽지도 않는다).
+  // #948 — 인라인이어도 경로 룰 포인터가 가리키는 룰은 `.agents/rules/` 파일이다 — 그 파일을 잰다(인라인 몫은 계획 엔트리)
+  const pointed = pointedRuleFiles(spec);
   const rules =
     surface === "claude"
       ? mdFiles(join(".claude", "rules"), "rules")
       : rulesInline(spec)
-        ? planned.filter((e) => e.target.startsWith(".claude/rules/"))
+        ? [
+            ...planned.filter(
+              (e) =>
+                e.target.startsWith(".claude/rules/") &&
+                !pointed.some((f) => f.endsWith(`/${e.target.slice(".claude/rules/".length)}`)),
+            ),
+            ...pointed.map((f) => ({
+              source: `rules/${basename(f)}`,
+              target: `.claude/rules/${basename(f)}`,
+              file: f,
+            })),
+          ]
         : mdFiles(join(".agents", "rules"), "rules", "uzys-harness.md");
   const slot = hasClaude ? join(".claude", "skills") : join(".agents", "skills");
   const skills = planned
@@ -491,12 +506,28 @@ function contextFilesOnDisk(spec: InstallSpec): string[] {
 function rulesInsideAgentsMd(spec: InstallSpec, cost: ResidentCost): ResidentCost {
   if (anchorSurface(spec.cli).scaffold !== "agents-md" || !rulesInline(spec)) return cost;
   const rendered = spec.updateOnly === undefined || spec.updateOnly.includes("external");
+  // #948 — 경로 룰 포인터가 가리키는 파일은 `AGENTS.md` 밖이다: 그 토큰만 룰 토큰으로 남긴다(인라인 몫은 파일 숫자에 있다)
+  const outside = pointedRuleFiles(spec);
   return makeResidentCost({
     ...cost,
-    rules: 0,
+    rules: outside.reduce((sum, f) => sum + fileTokens(f), 0),
     rulesInline: rendered ? "rendered" : "planned",
+    ...(outside.length > 0 ? { rulesOutside: outside.length } : {}),
     contextNote: "whole file, incl. your text",
   });
+}
+
+/**
+ * #948 (ADR-117) — 디스크의 `AGENTS.md` 가 경로 룰 포인터로 가리키는 `.agents/rules/<룰>.md` 중 실재하는 파일(절대 경로). 룰이 인라인일
+ * 때만 뜻이 있다(`rulesInline`). 디스크 바이트로 본다 — 이번 실행이 그 파일을 안 썼어도 지금 상주하는 것은 그 바이트다.
+ */
+function pointedRuleFiles(spec: InstallSpec): string[] {
+  if (!rulesInline(spec)) return [];
+  const agents = join(spec.projectDir, "AGENTS.md");
+  if (!existsSync(agents)) return [];
+  return pathRulePointerTargets(readFileSync(agents, "utf8"))
+    .map((name) => join(spec.projectDir, ".agents", "rules", `${name}.md`))
+    .filter((f) => existsSync(f));
 }
 
 /**

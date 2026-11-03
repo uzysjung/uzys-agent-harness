@@ -51,6 +51,12 @@ export interface AgentsMdTransformParams {
    * (`uninstall --cli` 재렌더)는 `false` 를 명시한다: 보장하지 못한 채 안내만 쓰면 OpenCode 가 룰을 0번 받는다.
    */
   rulesViaInstructions: boolean;
+  /**
+   * #948 (ADR-117) — 이번 실행이 Codex 의 경로 룰(`paths:`) 도달을 `.agents/rules/<룰>.md` 로 보장했다(`runCliTransforms` 가 정한다:
+   * Codex ∈ 집합 ∧ OpenCode ∉ 집합 ∧ Antigravity 가 이번 룰을 전부 썼다). 참이고 이 파일이 절 모델이면 경로 룰 본문 대신 그 파일을
+   * 가리키는 목록을 쓴다. **required** — `.agents/rules/` 를 쓰지 않는 경로(`uninstall --cli` 재렌더)는 `false` 를 명시한다.
+   */
+  pathRulesViaFiles: boolean;
   /** 기준선(install log `externalFiles` + 이 실행의 앞 변환 결과). */
   baseline: ReadonlyMap<string, string>;
   /** `update` · `uninstall --cli` 경로 — 없는 파일은 `installedByRecord` 일 때만 만든다. */
@@ -127,6 +133,9 @@ export function runAgentsMdTransform(params: AgentsMdTransformParams): AgentsMdT
   const seededFrom =
     fromRoot !== null ? "CLAUDE.md" : legacy !== null ? LEGACY_ANTIGRAVITY_ANCHOR : null;
   ensureDir(projectDir);
+  // #944 R2-B1 · #948 — 위치 안내 · 경로 룰 포인터는 절 모델에만. 첫 접촉 블록은 설치자가 고치면 굳어서, 굳은 포인터는 CLI 집합이
+  // 바뀐 뒤 가리킬 파일이 없다 — 블록은 늘 인라인이다
+  const sectionsModel = agentsMdModelFor(projectDir, baseline, shared) === "sections";
   const rendered = renderAgentsMd({
     template,
     claudeMd,
@@ -136,12 +145,12 @@ export function runAgentsMdTransform(params: AgentsMdTransformParams): AgentsMdT
       seed ?? renderFillScaffold("agents-md"),
       skillIds,
     ),
-    harnessRules: renderRulesBlock(portRules(harnessRoot, params.rules)),
+    harnessRules: renderRulesBlock(
+      portRules(harnessRoot, params.rules),
+      params.pathRulesViaFiles && sectionsModel,
+    ),
     clis,
-    // #944 R2-B1 — 위치 안내는 절 모델에만. 첫 접촉 블록은 늘 인라인이다 — 설치자가 블록을 고치면 굳어서, 굳은 위치 안내는 CLI
-    // 집합이 바뀐 뒤(Antigravity 가 빠지거나 Codex 가 들어오면) 가리킬 룰이 없다
-    rulesViaInstructions:
-      params.rulesViaInstructions && agentsMdModelFor(projectDir, baseline, shared) === "sections",
+    rulesViaInstructions: params.rulesViaInstructions && sectionsModel,
   });
   const agentsMd = writeAgentsMd({
     projectDir,

@@ -1191,6 +1191,8 @@ function rerenderAgentsMd(
     // #944 (ADR-116) — 이 경로는 `opencode.json` 을 쓰지 않아 OpenCode 의 도달을 보장하지 못한다 — 늘 인라인. 다음 update 가
     // 조건이 맞으면 위치 안내로 되돌린다(ADR-103 결정 2 의 "다음 update 와 같은 바이트" 는 이 경우에 깨진다 — ADR-116)
     rulesViaInstructions: false,
+    // #948 (ADR-117) — 같은 이유로 `.agents/rules/` 를 이번에 쓰지 않는다 — 경로 룰도 인라인
+    pathRulesViaFiles: false,
     baseline: new Map((log.externalFiles ?? []).map((f) => [f.path, f.sha256])),
     refreshOnly: true,
     installedByRecord: true,

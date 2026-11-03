@@ -113,7 +113,8 @@ TypeScript + tsup 번들 · Node 20+ · vitest · biome. 배포 = npm `@uzysjung
    예외 하나 — Codex 가 없고 `AGENTS.md` 가 절 모델이고 그 실행이 `.agents/rules/` 를 다 썼으면 OpenCode 는
    `opencode.json` `instructions` 의 `.agents/rules/*.md` 로 그 파일을 읽는다(여전히 상주 ·
    `AGENTS.md` 에는 위치 안내만). OpenCode 단독이면 `instructions` 에 `rules/` 가 없다 —
-   `tests/resident-reach-4cli.test.ts` 가 문다. 경위 = #300 · #338 · ADR-116.
+   `tests/resident-reach-4cli.test.ts` 가 문다. 경위 = #300 · #338 · ADR-116. Codex + Antigravity(OpenCode
+   없음)면 경로 룰만 `.agents/rules/<룰>.md` 를 가리키는 줄이다(ADR-117).
 4. **문서·자산 변경의 영향 범위를 도구·grep 으로 고르지 마라** — 애매하면 전체를 돌린다.
    근거 실측·전례 = `.claude/rules/test-policy.md` §영향 범위.
 5. **버전 확인은 `package.json`·`git tag` 로 한다.** `package-lock.json` 은 게시 계약 밖이라
