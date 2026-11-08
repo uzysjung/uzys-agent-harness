@@ -20,7 +20,7 @@ and the rule that decides it is [described below](#which-agents-an-asset-reaches
 - **Files land where they belong.** For assets that ship from this repository as templates,
   CI checks that install writes the right content to the right path for each agent.
 
-**34/60 assets are 🟢 verified by a real install; the remaining 26 assets are 🟡 — templates shipped from this repository, among them dev-method 5 skills, where CI verifies file placement instead.**
+**34/61 assets are 🟢 verified by a real install; the remaining 27 assets are 🟡 — templates shipped from this repository, among them dev-method 5 skills, where CI verifies file placement instead.**
 
 Per-asset status is in the generated table below, one row per asset.
 
@@ -78,7 +78,7 @@ stale row fails the build rather than misleading you.
 
 <!-- AUTO-GEN:CATALOG:START -->
 
-> **Generated** by `scripts/gen-compatibility.mjs` — do not edit by hand. assets **60** (official 26 / vetted 31 / experimental 3) · 🟢 verified **34/60**. Tier source of truth: `src/external-assets.ts`; drift watcher: `trust-tier-drift.yml`.
+> **Generated** by `scripts/gen-compatibility.mjs` — do not edit by hand. assets **61** (official 27 / vetted 31 / experimental 3) · 🟢 verified **34/61**. Tier source of truth: `src/external-assets.ts`; drift watcher: `trust-tier-drift.yml`.
 >
 > **🟢 = installability proven by running the real install** (Docker container or registry lookup, decided by delivery method). The date 2026-06-06 is when the verification batch ran — **not a per-asset verification date**. Per-asset history is in the [CHANGELOG](../CHANGELOG.md).
 
@@ -144,7 +144,7 @@ stale row fails the build rather than misleading you.
 | `finance-skills` | vetted | `finance-skills@claude-code-skills` | Claude Code (plugin) | 🟢 Docker |
 | `marketingskills` | vetted | `marketing-skills@marketingskills` | Claude Code (plugin) | 🟢 Docker |
 
-#### 🛡️ Dev Tools (12)
+#### 🛡️ Dev Tools (13)
 
 | id | tier | install target | reaches | verified |
 |---|---|---|---|---|
@@ -155,6 +155,7 @@ stale row fails the build rather than misleading you.
 | `gemini-delegate` | official | templates (`--with gemini-delegate`) | 4-CLI (bundled skill dir) | 🟡 local |
 | `chatgpt-delegate` | official | templates (`--with chatgpt-delegate`) | 4-CLI (bundled skill dir) | 🟡 local |
 | `genspark-delegate` | official | templates (`--with genspark-delegate`) | 4-CLI (bundled skill dir) | 🟡 local |
+| `benchmark-checklist` | official | templates (`--with benchmark-checklist`) | 4-CLI (bundled skill dir) | 🟡 local |
 | `self-hosted-github-runner` | official | templates (`--with self-hosted-github-runner`) | 4-CLI (bundled skill dir) | 🟡 local |
 | `security-guidance` | official | `security-guidance@claude-plugins-official` | Claude Code (plugin) | 🟢 Docker |
 | `claude-security` | official | `claude-security@claude-plugins-official` | Claude Code (plugin) | 🟢 Docker |

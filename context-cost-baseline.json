@@ -168,6 +168,7 @@
     "multi-model-debate": 144,
     "gemini-delegate": 168,
     "chatgpt-delegate": 172,
-    "genspark-delegate": 207
+    "genspark-delegate": 207,
+    "benchmark-checklist": 95
   }
 }

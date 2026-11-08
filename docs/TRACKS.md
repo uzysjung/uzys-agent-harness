@@ -63,6 +63,8 @@ The method skills are built into this repo — written and maintained here, bund
 
 Three more built-in skills are **opt-in on every track**: `gemini-delegate` · `chatgpt-delegate` · `genspark-delegate` hand work to Gemini, ChatGPT, or Genspark on the web through your own logged-in Chrome (Genspark also generates images). Installing them only copies files; running them needs a browser tool in your CLI — Claude Code with Claude in Chrome, or the Codex app; the Codex CLI has no browser — and your signed-in account. Add them at step 3 or with `--with <id>`.
 
+`benchmark-checklist` is also **opt-in on every track**. Before your agent reports a speedup, a regression, or picks an option for speed, it checks that the number has a baseline, came from runs without errors, measured work that actually happened, compared both sides under the same conditions, and holds up over repeated runs. Adapted from pstack (MIT). Add it at step 3 or with `--with benchmark-checklist`.
+
 ---
 
 ## What each stack adds

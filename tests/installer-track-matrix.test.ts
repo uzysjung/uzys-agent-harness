@@ -205,7 +205,13 @@ describe("Track matrix — v0.5.0 신규 Track", () => {
       "natural-korean",
       "multi-model-debate",
     ];
-    const optIn = ["gemini-delegate", "chatgpt-delegate", "genspark-delegate"];
+    // #971 — benchmark-checklist 도 opt-in 번들 스킬이다.
+    const optIn = [
+      "gemini-delegate",
+      "chatgpt-delegate",
+      "genspark-delegate",
+      "benchmark-checklist",
+    ];
     // ci-scaffold 는 번들 스킬이 아니라 `.github/workflows/` 를 쓰는 자산이다 — 선택만 트랙 전수로 잰다.
     for (const t of TRACKS) {
       expect(

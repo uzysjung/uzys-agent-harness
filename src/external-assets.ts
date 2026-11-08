@@ -57,6 +57,8 @@ export type ExternalAssetMethod =
         | "gemini-delegate"
         | "chatgpt-delegate"
         | "genspark-delegate"
+        // #971 — 성능 · 속도 주장 전 측정 점검(pstack benchmark-checklist 각색 · MIT). opt-in.
+        | "benchmark-checklist"
         // 위임·설계·다단계 작업의 요청을 canonical 브리프 형태로 정규화.
         | "objective-brief"
         // 설치된 상주 조종층(앵커·룰·훅·permissions·descriptor)의 밥값 감사 — 자기유지 루프.
@@ -413,6 +415,18 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     source: "uzys",
     condition: { kind: "opt-in" },
     method: { kind: "internal", key: "genspark-delegate" },
+  },
+  // #971 (사용자 결정 2026-11-08) — pstack benchmark-checklist(MIT)를 각색한 번들 스킬. 성능 주장 오류는 설치자 쪽
+  //   관측이 아직 없어 opt-in 이다(평가 = docs/research/pstack-evaluation-2026-11.md A05). 출처 · 라이선스 = 스킬 폴더의 LICENSE.
+  {
+    id: "benchmark-checklist",
+    tier: "official", // uzys 번들 스킬 (상류 MIT 각색)
+    description:
+      "Benchmark checklist — before reporting a speedup, regression, or perf-based choice, check the baseline, errors, whether the work actually ran, same-condition comparison, and repeat runs (adapted from pstack, MIT)",
+    category: "dev-tools",
+    source: "uzys",
+    condition: { kind: "opt-in" },
+    method: { kind: "internal", key: "benchmark-checklist" },
   },
   {
     // 복원 9종이 아니라 신설이다 — 이관 이력이 없다.
@@ -1180,6 +1194,8 @@ export const INTERNAL_BUNDLED_SKILL_IDS: ReadonlyArray<string> = [
   "gemini-delegate",
   "chatgpt-delegate",
   "genspark-delegate",
+  // #971 — opt-in. condition 이 설치를 가른다.
+  "benchmark-checklist",
 ];
 
 /**
