@@ -443,12 +443,18 @@ function workspaceSiblings(
  * 이 함수는 음성 대조에서 **살아남은 뒤** 고친 것이다 — 원래 정확일치만 해서
  * `GoalTrack` 주입을 통과시켰다. 초록불이 무는지 확인하지 않았으면 그대로 실렸다.
  */
+/**
+ * 조각이 흔한 영어 낱말이면 배포 문서의 일반 문장(`launch post` 등)에 걸려 오탐만 낳는다 — 형제 이름 **전체**와 나머지 조각은 그대로
+ * 잡는다(2026-11-08 실측: 이름에 이 낱말이 든 형제 프로젝트가 생기자 로컬 게이트가 스킬 문서 10줄을 잡았다).
+ */
+const COMMON_WORD_FRAGMENTS: ReadonlySet<string> = new Set(["launch"]);
+
 function siblingPattern(siblings: ReadonlyArray<string>): RegExp {
   const candidates = new Set<string>();
   for (const name of siblings) {
     candidates.add(name);
     for (const frag of name.split(/[-_.]/)) {
-      if (frag.length >= 5) candidates.add(frag);
+      if (frag.length >= 5 && !COMMON_WORD_FRAGMENTS.has(frag.toLowerCase())) candidates.add(frag);
     }
   }
   const escaped = [...candidates].map((s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
