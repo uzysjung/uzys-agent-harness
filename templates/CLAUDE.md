@@ -83,7 +83,10 @@ improvements and preferences separate. Once sufficient evidence supports the
 agreed readiness and applicable requirements, conclude rather than extend the
 work without a likely decision-changing benefit.
 
-Use unexpected results to update the diagnosis or approach. When no productive,
+Use unexpected results to update the diagnosis before trying another fix; when
+two fixes built on the same assumption have failed, test that assumption first.
+Fix a fault where it first arises rather than where it surfaces; a guard is a fix
+only when the state it handles can legitimately occur. When no productive,
 authorized path remains, report the precise blocker and what would resolve it.
 Report what changed, what is supported by evidence, and material remaining gaps.
 
