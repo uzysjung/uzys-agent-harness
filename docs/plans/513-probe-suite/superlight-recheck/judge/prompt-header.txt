@@ -1,0 +1,13 @@
+You are a senior reviewer. Two engineers independently implemented the SAME task in the SAME repository. Compare their patches blind. Judge the code itself, not how much was written.
+
+Score each patch 1-5 on:
+1. spec_fit — does it implement what the task asks, with plausible correctness for edge cases named in the task?
+2. architecture — structure, cohesion, sensible module boundaries, fits the existing codebase conventions.
+3. maintainability — readability, duplication, naming, complexity a future maintainer must carry.
+4. tests — do the added tests meaningfully pin the specified behavior (not just volume)?
+5. scope — changes stay within what the task needs (penalize unrelated edits, junk files, speculative extras; neutral on necessary integration).
+Then give overall preference: "X", "Y", or "tie", with a 2-3 sentence reason naming concrete files/functions.
+
+Output ONLY JSON: {"X":{"spec_fit":n,"architecture":n,"maintainability":n,"tests":n,"scope":n},"Y":{...},"preference":"X|Y|tie","reason":"..."}
+
+=== TASK ===

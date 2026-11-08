@@ -1,0 +1,24 @@
+deepswe-A-r1-bandit-interprocedural-taint-checks     turns main/sub  86/0   in main  0.00M sub  0.00M cache_read  0.00M out    0.0k | tests  9 harnessrefs  0 | init skills 16 agents 5
+    tools {'Bash': 59, 'Edit': 31, 'Write': 11, 'Read': 10} skills {} agents {}
+deepswe-A-r1-onedump-dump-encryption-pipeline        turns main/sub  61/0   in main  0.00M sub  0.00M cache_read  0.00M out    0.0k | tests 14 harnessrefs  0 | init skills 16 agents 5
+    tools {'Bash': 31, 'Edit': 27, 'Read': 11, 'Write': 5} skills {} agents {}
+deepswe-A-r1-superjson-error-stack-serialization     turns main/sub  38/0   in main  0.00M sub  0.00M cache_read  0.00M out    0.0k | tests 10 harnessrefs  0 | init skills 16 agents 5
+    tools {'Bash': 17, 'Read': 13, 'Edit': 11, 'Write': 5} skills {} agents {}
+deepswe-A-r1-updo-policy-alerting                    turns main/sub  94/0   in main  0.00M sub  0.00M cache_read  0.00M out    0.0k | tests 10 harnessrefs  0 | init skills 16 agents 5
+    tools {'Bash': 59, 'Edit': 45, 'Read': 14, 'Write': 5} skills {} agents {}
+deepswe-B-r1-bandit-interprocedural-taint-checks     turns main/sub 149/66  in main  0.00M sub  0.00M cache_read  0.00M out    0.0k | tests 33 harnessrefs  4 | init skills 30 agents 7
+    tools {'Bash': 162, 'Edit': 56, 'Read': 29, 'Write': 18, 'Skill': 2, 'Agent': 2, 'ListAgents': 1, 'SendMessage': 1} skills {'model-orchestration': 1, 'user-centered-explanation': 1} agents {'reviewer': 2}
+deepswe-B-r1-onedump-dump-encryption-pipeline        turns main/sub  68/30  in main  0.00M sub  0.00M cache_read  0.00M out    0.0k | tests 20 harnessrefs  2 | init skills 30 agents 7
+    tools {'Bash': 67, 'Edit': 33, 'Read': 27, 'Write': 4, 'Skill': 2, 'Agent': 1} skills {'user-centered-explanation': 1, 'model-orchestration': 1} agents {'reviewer': 1}
+deepswe-B-r1-superjson-error-stack-serialization     turns main/sub  71/27  in main  0.00M sub  0.00M cache_read  0.00M out    0.0k | tests 12 harnessrefs  2 | init skills 30 agents 7
+    tools {'Bash': 48, 'Read': 33, 'Edit': 22, 'Write': 10, 'Skill': 2, 'ListAgents': 2, 'Agent': 1, 'SendMessage': 1} skills {'model-orchestration': 1, 'user-centered-explanation': 1} agents {'reviewer': 1}
+deepswe-B-r1-updo-policy-alerting                    turns main/sub 120/25  in main  0.00M sub  0.00M cache_read  0.00M out    0.0k | tests 13 harnessrefs  5 | init skills 30 agents 7
+    tools {'Bash': 84, 'Edit': 50, 'Read': 29, 'Write': 8, 'Skill': 2, 'Agent': 1} skills {'model-orchestration': 1, 'user-centered-explanation': 1} agents {'reviewer': 1}
+swtbench-A-r1-pydata__xarray-7233                    turns main/sub  24/0   in main  0.00M sub  0.00M cache_read  0.00M out    0.0k | tests  3 harnessrefs  0 | init skills 16 agents 5
+    tools {'Bash': 24, 'Read': 4, 'WebFetch': 1, 'Edit': 1} skills {} agents {}
+swtbench-A-r1-sympy__sympy-14711                     turns main/sub  25/0   in main  0.00M sub  0.00M cache_read  0.00M out    0.0k | tests  5 harnessrefs  0 | init skills 16 agents 5
+    tools {'Bash': 19, 'Read': 5, 'Edit': 2, 'WebSearch': 1} skills {} agents {}
+swtbench-B-r1-pydata__xarray-7233                    turns main/sub  38/0   in main  0.00M sub  0.00M cache_read  0.00M out    0.0k | tests  4 harnessrefs  0 | init skills 30 agents 7
+    tools {'Bash': 29, 'Read': 6, 'Edit': 3, 'Skill': 2, 'WebFetch': 1} skills {'user-centered-explanation': 1, 'model-orchestration': 1} agents {}
+swtbench-B-r1-sympy__sympy-14711                     turns main/sub  15/0   in main  0.00M sub  0.00M cache_read  0.00M out    0.0k | tests  3 harnessrefs  0 | init skills 30 agents 7
+    tools {'Bash': 10, 'Read': 2, 'WebFetch': 2, 'Edit': 2, 'Skill': 1} skills {'user-centered-explanation': 1} agents {}

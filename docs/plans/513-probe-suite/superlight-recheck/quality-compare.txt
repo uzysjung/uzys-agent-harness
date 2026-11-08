@@ -1,0 +1,12 @@
+deepswe-A-r1-bandit-interprocedural-taint-checks reward 1 tests 359/359 | uncached_in     129k cache_read   8.1M out    81k est$  6.7 | patch {'files': 16, 'test_files': 2, 'add': 1702, 'dele': 0, 'test_add': 375}
+deepswe-A-r1-onedump-dump-encryption-pipeline    reward 0 tests 21/88 | uncached_in      72k cache_read   3.5M out    41k est$  3.2 | patch {'files': 14, 'test_files': 6, 'add': 1775, 'dele': 36, 'test_add': 1025}
+deepswe-A-r1-superjson-error-stack-serialization reward 0 tests 190/196 | uncached_in      75k cache_read   2.4M out    53k est$  2.9 | patch {'files': 8, 'test_files': 1, 'add': 1504, 'dele': 29, 'test_add': 746}
+deepswe-A-r1-updo-policy-alerting                reward 0 tests 139/140 | uncached_in     120k cache_read   8.2M out    63k est$  6.3 | patch {'files': 15, 'test_files': 4, 'add': 1926, 'dele': 156, 'test_add': 1148}
+deepswe-B-r1-bandit-interprocedural-taint-checks reward 1 tests 359/359 | uncached_in     379k cache_read  18.4M out   249k est$ 17.3 | patch {'files': 21, 'test_files': 2, 'add': 2316, 'dele': 0, 'test_add': 703}
+deepswe-B-r1-onedump-dump-encryption-pipeline    reward 0 tests 21/88 | uncached_in     155k cache_read   6.3M out    77k est$  5.8 | patch {'files': 16, 'test_files': 9, 'add': 1570, 'dele': 41, 'test_add': 890}
+deepswe-B-r1-superjson-error-stack-serialization reward 0 tests 195/196 | uncached_in     208k cache_read   7.8M out   121k est$  8.0 | patch {'files': 13, 'test_files': 5, 'add': 1953, 'dele': 29, 'test_add': 1089}
+deepswe-B-r1-updo-policy-alerting                reward 0 tests 138/140 | uncached_in     211k cache_read  13.4M out   101k est$ 10.3 | patch {'files': 20, 'test_files': 5, 'add': 1839, 'dele': 196, 'test_add': 1028}
+swtbench-A-r1-pydata__xarray-7233                reward {} tests None | uncached_in      43k cache_read   0.8M out    21k est$  1.1 | patch None
+swtbench-A-r1-sympy__sympy-14711                 reward {} tests None | uncached_in      24k cache_read   0.7M out    11k est$  0.7 | patch None
+swtbench-B-r1-pydata__xarray-7233                reward {} tests None | uncached_in      70k cache_read   1.6M out    24k est$  1.7 | patch None
+swtbench-B-r1-sympy__sympy-14711                 reward {} tests None | uncached_in      47k cache_read   0.6M out    16k est$  0.9 | patch None

