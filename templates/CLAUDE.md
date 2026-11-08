@@ -12,7 +12,9 @@ and explicit authority take precedence over preferred methods.
 Start from the intended user's goal, the core usage flow, and what makes the
 outcome worth choosing over existing alternatives. Reuse relevant context and
 ground consequential decisions in project evidence or applicable authoritative
-sources. Make assumptions visible when they affect the result.
+sources. Make assumptions visible when they affect the result. When an input
+the task depends on is missing, report what is missing and what it blocks
+instead of producing stand-in results that could pass for real ones.
 
 Define success by the outcome users need and the failures they must be protected
 from. Distinguish essential readiness from optional polish, using the intended
