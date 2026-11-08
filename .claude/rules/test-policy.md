@@ -26,6 +26,10 @@
 
 ⓐ `npx vitest related <문서·자산 파일>` 은 **0건을 고른다**(스위트 다수가 `readFileSync`/`readdirSync` 로 경로를 읽어 import 그래프 밖). 실측: `templates/CLAUDE.md` 한 곳을 고치자 **건드리지 않은 테스트 2개**가 깨졌다. ⓑ 룰 변경 후 `grep -rln "rules/" tests/` 로 고른 14개는 전부 green 이었는데 `tests/north-star-cost-figures.test.ts` 가 red 였다(그 파일엔 `rules/` 문자열이 없다). → **문서·자산 변경의 영향 범위 = 그 파일 · 그 디렉터리를 경로로 읽는 게이트 + 상주 문서를 통째로 읽는 비용 게이트**(`north-star-cost-figures` · `resident-cost-honesty` · `baseline-targets` · `resident-rule-reference-liveness` · `context-cost-ratchet`). 파일 이름만이 아니라 디렉터리 읽기(`readdirSync`)·매니페스트 경유까지 따라가 고르고, 수정이 다 모인 뒤 **한 번** 돌린다. 고르기가 애매하면 그 변경이 공유하는 것(디렉터리 · 매니페스트 · 설정)을 따라 넓힌다 — 기본값으로 전체를 돌리지 않는다. 남는 위험은 배포(tag) CI 의 풀 스위트가 출하 전에 잡는다.
 
+## 다른 CLI 도달 — 실 CLI 로 잰다 (사용자 지시 2026-11-08, #964)
+
+이 저장소의 `AGENTS.md` 나 지시 파일(`CLAUDE.md` · `.claude/CLAUDE.md` · `.claude/rules/`)의 위치 · 안내를 바꾸는 PR 은 머지 전에 Codex · OpenCode · Antigravity 가 답하기 전에 룰 파일을 실제로 읽는지 잰다 — `bash scripts/measure-rule-reach.sh <out>` 뒤 `python3 -I scripts/measure-rule-reach.py <out>`. 셋 다 PASS 여야 머지한다. API 오류로 판정 불가면 그 CLI 만 다시 돌린다. 실 모델 호출(인증 · 비용)이라 상시 스위트 · CI 밖이다. 안내가 가리키는 파일이 살아 있는지는 `tests/repo-agents-md-reach.test.ts` 가 상시로 본다.
+
 ## `변이 테스트` = 입력 변이 (이 리포 확정 어휘)
 
 새 가드를 넣었으면 **그 가드가 읽는 입력**을 일부러 위반 상태로 만들어 빨간불을 눈으로 본다. 가드의 검사 대상이 소스 코드면 그 소스를 되돌리는 **음성 대조**가 같은 자리를 맡고, 그때 되돌린 코드가 typecheck 를 통과하는지까지 확인한다 — 빌드 파손으로 난 FAIL 은 증거가 아니다.
