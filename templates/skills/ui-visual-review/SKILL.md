@@ -87,9 +87,10 @@ await page.reload({ waitUntil: 'networkidle' });
 
 **두 가지 사용 형태**
 
-0. **기존 launcher 를 먼저 정리한다** — `pkill -f "playwright|Chrome for Testing"`. 같은 profile
-   dir 을 잡고 있는 창이 살아 있으면 `launchPersistentContext` 가 기동하지 못한다. 첫 실행은 되고
-   **2회차부터** 실패하기 때문에 프로필 잠금이 아니라 스크립트 버그로 오진하기 쉽다.
+0. **같은 profile dir 을 쓰는 launcher 만 먼저 정리한다** — `pkill -f "<이 스크립트의 profile dir 절대 경로>"` 뒤
+   `pgrep -f` 같은 패턴이 비었는지 확인한다. 같은 profile dir 을 잡고 있는 창이 살아 있으면 `launchPersistentContext` 가
+   기동하지 못한다 — 첫 실행은 되고 **2회차부터** 실패하기 때문에 프로필 잠금이 아니라 스크립트 버그로 오진하기 쉽다.
+   `playwright` · `Chrome for Testing` 처럼 넓게 잡으면 다른 세션의 브라우저 · Playwright MCP 서버까지 죽인다.
 1. **사용자가 직접 보는 경우** — `node scripts/<project>-launch.mjs` 를 포그라운드로 띄우고
    "URL / 로그인됨 / 직접 쓰세요"를 보고한 뒤, 추가 navigation·evaluate 를 **하지 않는다**.
    사용자 입력과 충돌한다.
@@ -192,7 +193,7 @@ L2/L3 fail이거나 차이가 임계 이상이면 에이전트가 다음 휴리�
 
 - **REGRESSION 있음** → 수정 후 재실행 (Revision Gate)
 - **CHANGED만 있음** → 항목별 approve 또는 reject. approve 시 baseline 업데이트
-- **PASS만 있음** → 자동 baseline 업데이트 가능
+- **PASS만 있음** → baseline 은 그대로 둔다(바뀐 것이 없다)
 
 ## Output
 
