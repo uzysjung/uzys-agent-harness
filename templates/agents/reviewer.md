@@ -59,6 +59,7 @@ context: fork
 [CRITICAL] Title
 File: path/to/file.ts:42
 Issue: 설명
+Evidence: 실행·재현 | 경로 추적 | 추론 — 무엇으로 확인했나(미확인이면 확정할 실행)
 Fix: 해결 방향
 
 ### Positive Observations
