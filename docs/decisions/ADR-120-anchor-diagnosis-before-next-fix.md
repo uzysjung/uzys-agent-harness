@@ -1,8 +1,8 @@
 # ADR-120: 배포 앵커 §5 에 "같은 가정의 수정 두 번 실패 → 가정 시험 · 처음 생긴 곳에서 고치기"를 넣는다
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-11-08
-- PR: (머지 시 채움)
+- PR: #975
 - Amends: ADR-091 결정 1(앵커는 사용자 문안) — 사용자가 조사 결과의 앵커 복원 후보 3건 중 추천안(§5 두 문장)을 채택했다(2026-11-08, #974).
 - Context: pstack 원칙 24종을 앵커와 원칙별로 대조했다(근거 = `docs/research/pstack-principles-comparison-2026-11.md`).
   충돌 8건은 모두 하네스 쪽을 유지했고, pstack 이 더 구체적으로 말하는 자리 3곳을 앵커 복원 후보로 냈다.
