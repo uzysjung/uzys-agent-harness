@@ -12,7 +12,7 @@
     "base": {
       "directive": {
         "items": 7,
-        "tokens": 4054
+        "tokens": 4093
       },
       "firing": {
         "items": 16,
@@ -22,7 +22,7 @@
     "tooling": {
       "directive": {
         "items": 8,
-        "tokens": 4166
+        "tokens": 4205
       },
       "firing": {
         "items": 16,
@@ -32,7 +32,7 @@
     "csr-supabase": {
       "directive": {
         "items": 8,
-        "tokens": 4246
+        "tokens": 4285
       },
       "firing": {
         "items": 17,
@@ -42,7 +42,7 @@
     "csr-fastify": {
       "directive": {
         "items": 8,
-        "tokens": 4246
+        "tokens": 4285
       },
       "firing": {
         "items": 17,
@@ -52,7 +52,7 @@
     "csr-fastapi": {
       "directive": {
         "items": 8,
-        "tokens": 4246
+        "tokens": 4285
       },
       "firing": {
         "items": 17,
@@ -62,7 +62,7 @@
     "ssr-htmx": {
       "directive": {
         "items": 8,
-        "tokens": 4402
+        "tokens": 4441
       },
       "firing": {
         "items": 16,
@@ -72,7 +72,7 @@
     "ssr-htmx-fastify": {
       "directive": {
         "items": 8,
-        "tokens": 4224
+        "tokens": 4263
       },
       "firing": {
         "items": 16,
@@ -82,7 +82,7 @@
     "ssr-htmx-hono": {
       "directive": {
         "items": 8,
-        "tokens": 4351
+        "tokens": 4390
       },
       "firing": {
         "items": 16,
@@ -92,7 +92,7 @@
     "ssr-nextjs": {
       "directive": {
         "items": 8,
-        "tokens": 4246
+        "tokens": 4285
       },
       "firing": {
         "items": 17,
@@ -102,7 +102,7 @@
     "data": {
       "directive": {
         "items": 7,
-        "tokens": 4054
+        "tokens": 4093
       },
       "firing": {
         "items": 17,
@@ -112,7 +112,7 @@
     "executive": {
       "directive": {
         "items": 5,
-        "tokens": 3050
+        "tokens": 3089
       },
       "firing": {
         "items": 6,
@@ -122,7 +122,7 @@
     "full": {
       "directive": {
         "items": 9,
-        "tokens": 4358
+        "tokens": 4397
       },
       "firing": {
         "items": 19,
@@ -132,7 +132,7 @@
     "project-management": {
       "directive": {
         "items": 5,
-        "tokens": 3050
+        "tokens": 3089
       },
       "firing": {
         "items": 5,
@@ -142,7 +142,7 @@
     "growth-marketing": {
       "directive": {
         "items": 5,
-        "tokens": 3050
+        "tokens": 3089
       },
       "firing": {
         "items": 5,
