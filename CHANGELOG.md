@@ -7,6 +7,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Sem
 
 > v26.x.x 부터 git tag versioning(CalVer, year-2000)으로 통합. CHANGELOG 도 CalVer 로 표기. v0.8.x 는 이전 npm-기반 추적.
 
+## [v26.184.0] — 2026-11-08 (OpenCode 가 섞여도 경로 룰은 파일을 가리킨다)
+
+### Changed
+- **OpenCode 를 함께 깐 설치도 특정 파일용 룰을 `AGENTS.md` 본문 대신 룰 파일에서 읽는다** (#960, PR #961 · ADR-119) — `ui-components` · `cli-development` · `htmx-*-ui` 처럼 경로가 정해진 룰은 "아래 파일을 만들거나 고치기 전에 그 룰을 읽고 따른다" 목록만 남는다. Codex · OpenCode 는 그 파일을 고칠 때만 룰을 읽는다. update 로 들어온다.
+  - Claude Code + Codex + OpenCode · Claude Code + OpenCode → `.claude/rules/<룰>.md`. CLI 넷 전부 · Codex + OpenCode + Antigravity → `.agents/rules/<룰>.md`.
+  - 근거: 실제 OpenCode 2.2.5 가 포인터를 둔 6회 모두 `.tsx` 를 쓰기 전에 룰 파일을 읽었고, 룰을 지운 대조군 2회는 읽지 않았다(`docs/research/codex-rule-pointer-2026-11.md` §5차).
+  - Codex + OpenCode + Antigravity 조합의 `AGENTS.md` 가 Antigravity 상한 24,000 B 를 넘던 트랙 조합이 91 중 13 → 0 이 됐다(최대 24,955 → 21,588 B) — 끝에 있던 설치자 글이 더는 잘리지 않는다.
+  - Codex 없이 OpenCode + Antigravity 인 설치는 바뀌지 않는다(이미 `opencode.json` 으로 룰 파일을 읽는다). 늘 적용되는 룰과 Working Principles 는 그대로 본문이다.
+
 ## [v26.183.0] — 2026-11-03 (Claude Code + Codex 의 경로 룰도 파일을 가리킨다)
 
 ### Changed
