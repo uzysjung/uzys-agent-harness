@@ -110,7 +110,7 @@ peer collapses the panel toward one effective vote.
 exactly the long payload that gets dropped in transit, and the loss is silent. Losing one persona's
 report does not merely cost that report: it quietly shrinks the panel, which is the one variable
 the whole method depends on (see "Nine Judges, Two Effective Votes" above). Name the path when you
-spawn, not after — see [[model-orchestration]] "Worker lifecycle" for the general rule.
+spawn, not after — see [[model-orchestration]] §4 "Transfer sufficient context, not entire histories" for the general rule.
 
 Prefer pinning the persona sub-agents to a cheaper tier (Sonnet) — see the cost-tier note. But this
 degrades gracefully: if the harness can't pin sub-agents to a specific model, just run the panel on
@@ -152,7 +152,7 @@ agent keeps its pane/window open and keeps pinging the session, and after two or
 clutter is the session. Read the persona's report file, then stop that agent in the same motion
 (TaskStop or the harness's stop mechanism); do not defer it to "cleanup later". By the time you
 start deduping, zero panel agents should still be running. The general rule and its rationale live
-in [[model-orchestration]] "Worker lifecycle" — this is that rule at panel scale.
+in [[model-orchestration]] §6 "Preserve authority and continuity" — this is that rule at panel scale.
 
 Do **not** keep the panel alive for the step-6 second pass. Re-verification wants a *fresh* agent
 reading the fixed artifact from disk, not a resumed one carrying its own first-pass findings —

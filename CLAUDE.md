@@ -116,7 +116,7 @@ TypeScript + tsup 번들 · Node 20+ · vitest · biome. 배포 = npm `@uzysjung
    `tests/resident-reach-4cli.test.ts` 가 문다. 경위 = #300 · #338 · ADR-116. ② 그 밖에 그 실행이 룰 전부를
    룰 폴더에 썼으면 경로 룰만 그 파일을 가리키는 줄이다 — Antigravity 와 함께면 `.agents/rules/<룰>.md`(ADR-117),
    없이 Claude Code 와 함께면 `.claude/rules/<룰>.md`(ADR-118). OpenCode 가 섞여도 같다(ADR-119).
-4. **문서·자산 변경의 영향 범위를 도구·grep 으로 고르지 마라** — 애매하면 전체를 돌린다.
+4. **문서·자산 변경의 영향 범위를 도구·grep 으로 고르지 마라** — 애매하면 그 변경이 공유하는 것을 따라 넓힌다(전체가 기본값은 아니다).
    근거 실측·전례 = `.claude/rules/test-policy.md` §영향 범위.
 5. **버전 확인은 `package.json`·`git tag` 로 한다.** `package-lock.json` 은 게시 계약 밖이라
    오래 멈춰 있어 착각을 부른다. GitHub release 는 만들지 않는다 — 태그·npm 이 SSOT 다.
