@@ -908,13 +908,13 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
   {
     // remotion: star 3.6k → vetted (star 기반 tier SSOT + trust-tier-drift CI 정합, 사용자 결정 2026-06-13).
     //   코어는 "Remotion License"(remotion-dev/remotion LICENSE.md) — 개인 · 3인 이하 영리 조직 · 비영리는
-    //   상업 용도 포함 무료, 그 밖의 영리 조직은 Company License(#980, 상류 본문 대조 2026-11-16).
+    //   상업 용도 포함 무료 · 상업 사용 전 평가도 무료, 그 밖의 영리 조직은 Company License(#980, 상류 본문 대조 2026-11-16).
     //   opt-in + description 고지로 신중 취급 (경고 배지 대신).
     //   --skill 값 = remotion-best-practices (dir `remotion` ≠ frontmatter name, Docker 실측 확정).
     id: "remotion",
     tier: "vetted", // remotion-dev/skills 3.6k (license none — 출처 신뢰; 코어 라이선스 고지)
     description:
-      "Remotion — programmatic MP4 video from React components. Free (commercial use included) for individuals, for-profit organizations of up to 3 employees, and non-profits; larger companies need a paid Remotion company license. The skill is a reference; the renderer and its environment are a separate install",
+      "Remotion — programmatic MP4 video from React components. Free (commercial use included) for individuals, for-profit organizations of up to 3 employees, and non-profits, and free to evaluate before commercial use; other companies need a paid Remotion company license. The skill is a reference; the renderer and its environment are a separate install",
     category: "visual-media",
     source: "remotion-dev",
     condition: { kind: "opt-in" },

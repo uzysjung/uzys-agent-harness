@@ -139,7 +139,7 @@ No track is built for this work. These are opt-in assets you add on top of a tra
 
 | You want to | Add | Reaches | Also needed |
 |---|---|---|---|
-| Make video from React components | `remotion` | all four CLIs | The Remotion renderer and its environment, installed separately — the skill is a reference. Remotion's own license: free (commercial use included) for individuals, for-profit organizations of up to 3 employees, and non-profits; larger companies need a paid Remotion company license |
+| Make video from React components | `remotion` | all four CLIs | The Remotion renderer and its environment, installed separately — the skill is a reference. Remotion's own license: free (commercial use included) for individuals, for-profit organizations of up to 3 employees, and non-profits, and free to evaluate before commercial use; other companies need a paid Remotion company license |
 | Write video as HTML and render it to MP4 | `hyperframes` | Claude Code (plugin) | Node 22+ and FFmpeg for rendering |
 | Animate a web page with GSAP | `gsap-skills` | Claude Code (plugin) | A project that already uses GSAP — the skills teach it; they do not add it |
 | Let your agent see and hear a reference video at a URL | `claude-video` | Claude Code (plugin) | Python 3.10+, FFmpeg, and yt-dlp on your machine — the plugin does not bundle them |
