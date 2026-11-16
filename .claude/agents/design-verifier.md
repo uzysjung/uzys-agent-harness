@@ -2,7 +2,7 @@
 name: design-verifier
 description: "Verifies a product plan (scope, completion criteria, Non-Goals, priority, issue grouping/closure) or a design document (user flows, contracts, data models, security boundaries, delegation briefs) before implementation. Read-only; returns BLOCKER/NOTE findings with evidence. Effort high; design-verifier-xhigh / design-verifier-max carry the same contract at higher effort."
 tools: ["Read", "Grep", "Glob", "Bash"]
-model: claude-fable-5-1
+model: fable
 effort: high
 ---
 

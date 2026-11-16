@@ -66,39 +66,43 @@ design. The session integrates either result; neither arrangement requires an
 extra review by default. Compare separately developed alternatives when their
 different approaches justify the additional work.
 
-Route by how open the work is. When the goal, the approach, or the answer is
-still open (setting direction, product planning, design, building a plan, a
-judgment that keeps stalling, or a problem that needs a fresh angle), use the
-strongest reasoning model available. When the criteria and scope are already
-fixed (implementation, verification, a comparison against a settled reference),
-a capable general model is usually enough and cheaper overall. Work with no
-judgment at all, such as link checks or confirming that a rebased change matches
-the reviewed one, goes to tools, direct execution, or the implementer.
+Route by how open the work is. When what to do, or the answer itself, is still
+open (setting direction, product planning, scoping, building a plan), use the
+strongest reasoning model available. When a judgment stalls mid-task or a problem
+needs a fresh angle, first measure what you can (run it, check the data, read the
+code) and bring in the strongest model only if the judgment still splits. Design,
+implementation, and verification inside a scope that a spec, the project's
+direction, or a benchmark has already fixed go to a capable general model or the
+session itself. Work with no judgment at all, such as link checks or confirming
+that a rebased change matches the reviewed one, goes to tools, direct execution,
+or the implementer.
 
 Choose effort by actual difficulty, interacting decisions, remaining uncertainty,
 likely rework, and the benefit of further reasoning. High stakes call for stronger
 assurance, not automatically maximum effort: inspecting code, contracts, tests,
 or external facts may resolve a risk that more reasoning alone cannot.
 
-For open work, start at high effort and check the result before relying on it.
-A shallow report reads as confidently as a sound one, so judge it by evidence:
-premises confirmed against code, data, or the original request rather than
-assumed; numbers that come out the same when you retrace them from the raw data;
-alternatives actually compared rather than one conclusion; unconfirmed assumptions
-stated. What counts as evidence depends on the work. A design or decision needs
-the location of each current fact, what breaks under each option, and the
-conditions that would change the recommendation. A review of a consequential
-area (permissions, approvals, personal data, exports, audit, migrations) needs a
-record of reverting the key lines and watching the tests fail, the counterexample
-inputs actually run with their results, and boundary-value checks; a claim of
-having tried a counterexample without the input and the result counts as missing.
-A calculation needs its steps and raw data. Rerun only the part that lacks this,
-at a higher effort, with the doubt written into the request. When a run or a data
-check would settle a calculation faster than more reasoning, measure first and
-raise the effort only if the judgment still splits. Start at the higher effort
-when the design is hard to reverse (permission boundaries, data deletion,
-migrations, money); a high run followed by a rerun pays twice. Treat the maximum
-effort level as an exception to raise with the user. Narrow confirmation whose
+For open work, start at high effort. Start at a higher effort when the design is
+hard to reverse (permission boundaries, data deletion, migrations, money); a high
+run followed by a rerun pays twice. Treat the maximum effort level as an
+exception to raise with the user.
+
+Judge every delegated result, from a planner, an implementer, or a reviewer, by
+evidence rather than tone: a shallow report reads as confidently as a sound one.
+An implementation or verification report needs the commands run with their exit
+codes, and for a new guard, a record of the test failing when the guard is
+reverted. A review of a consequential area (permissions, approvals, personal
+data, exports, audit, migrations) needs a record of reverting the key lines and
+watching the tests fail, the counterexample inputs actually run with their
+results, and boundary-value checks; a claim of having tried a counterexample
+without the input and the result counts as missing. A design or decision needs
+the location of each current fact, what breaks if each option is wrong, the
+conditions that would change the recommendation, and the assumptions it could
+not confirm. A calculation needs its steps and raw data. Rerun only the part that
+lacks this, with the doubt written into the request, instead of rerunning the
+whole at a higher effort. When the doubt is about a calculation or a behavior,
+measure it first and raise the effort only if the judgment still splits.
+Narrow confirmation whose
 answer is fixed (that a fix now passes the cited counterexample, that a document
 points to the right decision, that issue or pull request status matches the
 documents) needs only moderate effort, and moves up when it turns into finding
@@ -139,6 +143,9 @@ references, unresolved question, allowed changes, and completion criteria. Suppl
 enough context to decide correctly, including material failed approaches; favor
 accessible source references over replaying the conversation. Keep critical
 constraints explicit rather than relying on a lossy summary or hidden context.
+A worker asked to plan or design from facts it cannot see will design from
+assumption, so name where it can confirm the current facts (files, records,
+queries) and give it read access to them.
 
 Ask for the result needed for integration, its evidence, and remaining gaps.
 Short results can return directly. Use durable files or artifacts for large,
@@ -188,7 +195,10 @@ context makes correction efficient; reassess only the affected evidence.
 
 Resolve model availability, effort controls, inheritance, and tool behavior from
 the actual environment or applicable documentation when needed; reuse current
-evidence. Distinguish requested settings from observed execution. Do not claim
+evidence. Distinguish requested settings from observed execution: a requested effort or
+model can be silently not applied. Where a per-call setting can be dropped, fix it
+in the worker's definition, and still confirm the actual value from the
+execution record before relying on it. Do not claim
 a model, effort level, or independent review that was not established.
 
 Apply the same scope, data protections, and approval boundaries to every worker,

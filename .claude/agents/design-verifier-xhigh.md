@@ -2,7 +2,7 @@
 name: design-verifier-xhigh
 description: "design-verifier at effort xhigh — for plans or designs where several decisions interlock or a mistake is expensive to reverse: contracts, data models, new flows, installer-disk paths, multi-milestone plans."
 tools: ["Read", "Grep", "Glob", "Bash"]
-model: claude-fable-5-1
+model: fable
 effort: xhigh
 ---
 
