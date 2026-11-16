@@ -1605,6 +1605,23 @@
       "file": "local-plugins/ecc/scripts/hooks/evaluate-session.js",
       "evidence": "transcriptPath = input.transcript_path;",
       "fingerprint": "hooks-code-transcript-access-49::local-plugins/ecc/scripts/hooks/evaluate-session.js::transcriptPath = input.transcript_path;"
+    },
+    {
+      "id": "agents-bash-access-agents/planner.md",
+      "severity": "high",
+      "category": "agents",
+      "title": "Agent has Bash access: agents/planner.md",
+      "file": "agents/planner.md",
+      "fingerprint": "agents-bash-access-agents/planner.md::agents/planner.md::"
+    },
+    {
+      "id": "agents-escalation-chain-agents/planner.md",
+      "severity": "high",
+      "category": "agents",
+      "title": "Agent has full escalation chain: agents/planner.md",
+      "file": "agents/planner.md",
+      "evidence": "Discovery: Grep, Glob + Read + Write: Write + Bash",
+      "fingerprint": "agents-escalation-chain-agents/planner.md::agents/planner.md::Discovery: Grep, Glob + Read + Write: Write + Bash"
     }
   ]
 }
