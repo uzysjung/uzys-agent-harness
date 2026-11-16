@@ -21,8 +21,9 @@
 **순서.** 카탈로그에 배선하기 전에 **증분 0(대조 실험)**부터 한다 — 스킬 초안을 깐 쪽과 shadcn 공식 스킬만 있는 쪽을 같은 과제로
 돌려, 차이가 없으면 스킬을 내지 않는다(§4.0). 통과해야 증분 1(배선 · 테스트 · 문서)로 간다.
 
-**이슈가 든 것 중 첫 증분에 못 들어가는 것.** 출발값은 Carbon · Polaris · Material 3 · Apple HIG 에서 온다. Astryx 와 SLDS 2 는
-값을 확인하지 못해 다음 증분이고, 커머스 구매자 화면은 공개 출처가 없어 대부분 가정이다(§4.4). 실행 검증은 Claude Code 에서만 하고
+**이슈가 든 것 중 첫 증분에 못 들어가는 것.** 출발값은 이슈가 든 참조 여섯(Carbon · Polaris · Material 3 · Apple HIG · SLDS 2 · Astryx)과
+유사 서비스 10곳의 실측에서 온다(§1.5 · §4.4). 커머스 구매자 화면은 공개 토큰 출처가 없어 실측(국내 2 · 해외 2)이 받치고, 섹션 간격 · B2C 읽기 폭 ·
+장바구니 · 결제 화면은 여전히 가정이다. 실행 검증은 Claude Code 에서만 하고
 나머지 세 CLI 는 설치 안착까지만 확인한다(§3.3).
 
 ---
@@ -99,21 +100,24 @@
 | 시스템 | 확인한 값 | 출처 |
 |---|---|---|
 | Carbon | 타입 세트가 둘로 갈린다. **productive**(기준 14px — "product pages, higher density of information housed inside containers") · **expressive**(기준 16px — web pages). `body-01` 14/20 자간 +0.16px · `body-compact-01` 14/18 +0.16px · `body-02` 16/24 자간 0 · `label-01` 12/16 +0.32px · `heading-compact-01` 14/18 600 · `heading-03` 20/28. 간격 2 · 4 · 8 · 12 · 16 · 24 · 32 · 40 · 48 · 64 · 80 · 96 · 160px | https://carbondesignsystem.com/elements/typography/type-sets/ · https://carbondesignsystem.com/elements/spacing/overview/ |
-| Polaris | 4px 격자(`100` = 4px). 자간 토큰 normal 0 · dense −0.2px · denser −0.3px · densest −0.54px. 굵기 450 · 550 · 650 · 700. 카드 패딩 16px · 카드 간격 16px · 표 셀 패딩 6px · 버튼 묶음 간격 8px. 지금의 Polaris 는 Admin · Checkout · Customer accounts · POS 용 웹 컴포넌트다(스토어프런트 테마용이 아니다) | `Shopify/polaris` `polaris-tokens/src/themes/base/font.ts` · `space.ts` · `src/size.ts` · https://shopify.dev/docs/api/polaris |
+| Polaris | 4px 격자(`100` = 4px). 자간 토큰 normal 0 · dense −0.2px · denser −0.3px · densest −0.54px. 굵기 450 · 550 · 650 · 700. 카드 패딩 16px · 카드 간격 16px · 표 셀 패딩 6px · 버튼 묶음 간격 8px. 글자 조합: `body-md` 13/20 · `body-lg` 14/20 · `body-sm` 12/16(셋 다 자간 0) · `heading-md` 14/20 600 · `heading-lg` 20/24 600 dense · `heading-xl` 24/32 700 dense · `heading-2xl` 30/40 700 denser. 중단점 490 · 768 · 1040 · 1440px. 지금의 Polaris 는 Admin · Checkout · Customer accounts · POS 용 웹 컴포넌트다(스토어프런트 테마용이 아니다) | `Shopify/polaris` `polaris-tokens/src/themes/base/font.ts` · `text.ts` · `breakpoints.ts` · `space.ts` · `src/size.ts` · https://shopify.dev/docs/api/polaris |
 | Material 3 | body large 16/24 · body medium 14/20 · body small 12/16 · label large 14/20 · label medium 12/16 · title medium 16/24 · headline small 24/32 · medium 28/36 · large 32/40 · display small 36/44. 자간은 Roboto 기준 양수(body large +0.5sp) | `androidx` `compose/material3/.../tokens/TypeScaleTokens.kt` |
 | Apple HIG | 기본/최소 글자: iOS 17pt/11pt · macOS 13pt/10pt. iOS Large: Body 17/22 · Callout 16/21 · Subhead 15/20 · Footnote 13/18 · Title 3 20/25 · Title 1 28/34. SF Pro 자간: 17pt −0.43pt · 13pt −0.08pt · 12pt 0 · 11pt +0.06pt · 28pt +0.38pt. 컨트롤 기본/최소: iOS 44×44pt / 28×28pt · macOS 28×28 / 20×20. 컨트롤 사이 여백: 테두리 있는 요소 약 12pt, 없는 요소 약 24pt | https://developer.apple.com/design/human-interface-guidelines/typography · /accessibility (문서 JSON) |
 | Android | 터치 대상 최소 48dp. 창 폭 등급: compact < 600dp · medium 600~840dp · expanded 840~1200dp · large 1200~1600dp | https://support.google.com/accessibility/android/answer/7101858 · https://developer.android.com/develop/ui/compose/layouts/adaptive/use-window-size-classes |
 | 레이아웃(Carbon · HIG) | Carbon 2x 격자: 중단점 320 · 672 · 1056 · 1312 · 1584px, 열 4 · 8 · 16 · 16 · 16, 거터 32px. 고정 옆 패널은 "static width … exist outside of the responsive grid". HIG: iPhone 의 탭 바는 "at the bottom of the screen", 기본 탭은 "five or fewer" | https://carbondesignsystem.com/elements/2x-grid/overview/ · https://developer.apple.com/design/human-interface-guidelines/tab-bars (문서 JSON) |
-| SLDS 2 | 간격 훅 `--slds-g-spacing-*` 는 4 배수 스케일, `-4` = 1rem. **이 이상은 확인 못 했다**(이슈의 링크가 두 번 다 열리지 않았다) | developer.salesforce.com LWC 가이드(검색 요약) |
-| Astryx | Meta 의 오픈소스 디자인 시스템(MIT · ★28,911 · 베타 · React 19 + StyleX · 테마 = CSS 변수 덮어쓰기 · 테마 패키지 7종 · CLI 로 문서 조회). **토큰 값은 확인 못 했다** | https://astryx.atmeta.com/ · https://github.com/meta/astryx |
+| SLDS 2 | SLDS 2 의 기본 테마 **Cosmos** 의 전역 훅(`--slds-g-*`). 글자: 기본 13px(`font-scale-base`) · 기본 행간 1.5 · 스케일 10 · 12 · 14 · 16 · 20 · 24 · 28 · 32 · 40 · 48px(배율 1.15) · **자간 훅 없음**. 간격 4 · 8 · 12 · 16 · 24 · 32 · 40 · 48 · 56 · 64 · 72 · 80px, 밀도 두 단계(Comfy 기본 · Compact 는 대략 절반 — `spacing-var-4` 16 → 8). 반경 4 · 8 · 12 · 20px · 알약 — 버튼은 알약, 입력 8, 컨테이너 20. 입력 안쪽 여백 8 · 폼 라벨 13px 600 · 페이지 헤더 제목 28px 400 · 상단 헤더 50px · 탭 40px. 버튼 · 입력 높이 32px(라인 높이 30 + 테두리 2) · 터치 44px — 이 높이는 SLDS 1 · 2 공용 CSS 의 값이다(§6 U20) | npm `@salesforce-ux/design-tokens` 4.1.0 `dist/themes/cosmos/cosmos.global.tokens.css` · `cosmos.shared.tokens.css` · npm `@salesforce-ux/design-system` 2.264.3 `css/buttons/base/index.css:510` · `css/input/base/index.css:252-253` · `css/buttons/base/touch.css:241` · Cosmos = SLDS 2 기본 테마: https://developer.salesforce.com/docs/platform/lwc/guide/create-components-css-slds1-slds2.html . 이슈의 링크는 헤드리스 Chromium 으로 열면 200 이지만 본문이 그려지지 않는다(제목 · 내비만) |
+| Astryx | Meta 의 오픈소스 디자인 시스템(MIT · ★28,961 · 베타 · React 19 + StyleX · 테마 = CSS 변수 덮어쓰기). 기본값: 글자 기준 14px · 배율 1.2 → 10 · 12 · 14 · 17 · 20 · 24 · 29 · 35 · 42px. 본문 14/20 · 보조 12/20 · 제목 h1 24/32 · h2 20/28 · h3 17/24 · h4 14/20(제목은 600). **자간 토큰 없음**. 간격 4px 배수(rem, 0.5 단 포함) 0~48px. 컨트롤 높이 sm 28 · md 32 · lg 36. 반경 inner 4 · element 8 · container 12 · page 28 · full. 테마 7종은 색 · 서체가 중심이지만 스케일을 바꾸는 테마도 있다 — Butter · Y2K 는 컨트롤 32 · 40 · 48, Y2K 는 간격 ×1.5, Neutral 은 "거친 포인터 + lg 미만 폭"에서 본문 14 → 16px. **SaaS 열의 참조**(기본값이 Carbon productive 와 같은 14/20 · 32px 밀도)이고, 터치 화면에서 본문을 16 으로 올리는 규칙은 B2C 열의 근거다 | `meta/astryx` `packages/core/src/theme/tokens.stylex.ts:186-265, 347-476` · `packages/themes/README.md` · `packages/themes/neutral/src/neutralTheme.ts:49-79, 227-236` · `packages/themes/butter/src/butterTheme.ts:262-269` · `packages/themes/y2k/src/y2kTheme.ts:127-151`(`gh api`, 2026-11-16) |
+| 유사 서비스 실측 | SaaS(GitHub · GitLab · Hugging Face) · B2C(Airbnb · Spotify · 당근) · 커머스 구매자 화면(무신사 · 29CM · Nike · Allbirds)을 375 · 1440px 에서 쟀다. 값과 가운데 값은 §4.4, 서비스 × 닻 × 폭 원본은 근거 파일 | [`979-benchmark.md`](979-benchmark.md) |
 
 **여기서 나온 판단 두 가지.**
 
 - **자간은 서체에 딸린 값이다.** 본문 크기에서 Carbon(IBM Plex)과 M3(Roboto)는 양수, SF Pro 는 음수, Polaris 는 0 이다.
   부호부터 다르다. 그래서 프리셋이 자간 숫자를 고정해 주면 틀린다 — 서체를 먼저 정하고, 그 서체 공급자의 값이나 실측으로 정해야 한다.
+  SLDS 2 와 Astryx 는 자간 토큰이 아예 없고, 실측한 열 곳의 본문 자간도 전부 `normal` 이었다 — 0 이 아닌 값은 제목 · 가격 같은 강조에만 있었다(`979-benchmark.md` §4).
 - **컨셉에 따라 실제로 갈리는 축이 출처에 드러난다.** 업무용은 14px 본문 · 좁은 행간 · 32px 안팎 컨트롤(Carbon productive ·
   shadcn nova/mira), 소비자용은 16~17px 본문 · 44~48px 터치 대상 · 넉넉한 여백(HIG · M3 · shadcn maia)이다. 이슈가 말한
-  "미세하게 바뀌어야 한다"는 요구는 근거가 있는 요구다.
+  "미세하게 바뀌어야 한다"는 요구는 근거가 있는 요구다. 유사 서비스 실측도 같은 쪽으로 갈렸다 — SaaS 본문 14 · 주 버튼 32 · 옆 패널 3/3,
+  B2C 본문 16 · 주 버튼 48 · 알약형 버튼 3/3(§4.4).
 
 ---
 
@@ -181,6 +185,12 @@
 ## 4. 범위 — 증분 0(대조 실험) 다음에 증분 1(배선)
 
 ### 4.0 증분 0 — 배선 전에, 스킬을 낼지 말지를 가르는 대조 실험
+
+> **오너 결정(2026-11-16)으로 이 절의 GLM 대조 실험은 쓰지 않는다.** 대신 스킬 초안(SKILL.md + 참조 3개, 배선 없음)을 만든 뒤
+> Kimi 로 4종(SaaS 프로젝트 관리 · B2C 습관 기록 앱 · 커머스 패션몰 · 프리셋 밖 개인 금융 앱) × 스킬 없음/있음 = 대화 8개를 돌린다.
+> 산출물은 두 팔 모두 HTML 한 파일(Tailwind + daisyUI) + `DESIGN.md`, 한 대화에 화면 2~3장. 375px · 1440px 로 렌더해 A/B 를 가리고
+> 오너와 세션이 각자 **통일성 · 심미성 · 서비스 방향성**으로 고른 뒤 공개한다. **4종 중 3종 이상에서 스킬 쪽이 세 기준 우위면 낸다**,
+> 차이 없음이나 엇갈림이면 내지 않고 §4.4 표만 문서로 남긴다(결과 보기 전 확정). 아래 표의 채점 범위와 U21 은 이 결정으로 쓰지 않는다.
 
 **왜 먼저인가.** "스킬 없이도 같은 결과가 나오면 내지 않는다"(§3.2)가 추천의 첫 조건인데, 이 저장소의 컨테이너 게이트로는
 그 조건을 평가할 수 없다(H15). 배선 · 테스트 · ADR · 문서를 다 만든 뒤에야 그것을 알면, 조건이 한 번도 평가되지 않은 채
@@ -303,26 +313,28 @@ description: >-
 
 "출발값"이다. 3단계(보정)에서 바뀌는 것이 정상이고, **자간 열은 숫자를 고정하지 않는다**(§1.5 판단).
 `[가정]` 표시는 출처에서 확인한 값이 아니라 출처 있는 값에서 내가 유도한 것이다 — 실측으로 확정해야 한다.
+`실측` 은 2026-11-16 에 공개 제품 화면을 375 · 1440px 에서 잰 값의 가운데 값(괄호 안은 범위)이다 — 서비스 × 닻 × 폭 원본은 [`979-benchmark.md`](979-benchmark.md).
 
 | 축 | **SaaS**(업무용 제품 UI — 표 · 폼 · 대시보드) | **B2C**(소비자 서비스 — 모바일 우선 · 읽기 · 온보딩) | **커머스**(구매자 화면 — 목록 · 상세 · 장바구니 · 결제) |
 |---|---|---|---|
-| 1차 참조 | Carbon productive · Polaris(Admin) · SLDS 2 | Apple HIG · Material 3 · Carbon expressive | B2C 열을 기반으로 + Polaris(Checkout · Customer accounts) + 유사 서비스 실측 |
-| 본문 크기/행간 | 14px / 20px (Carbon `body-01`) | 16px / 24px (M3 body large · Carbon `body-02`). iOS 느낌이면 17 / 22 (HIG Body) | 16px / 24px. 상품 카드의 보조 정보 14 / 20 (M3 body medium) |
-| 보조 · 라벨 | 12 / 16 (Carbon `label-01` · M3 label medium) | 14 / 20 · 12 / 16. 최소 11 (HIG iOS 최소) | 12 / 16 |
-| 제목 | 컴포넌트 제목 14 / 18 600 (Carbon `heading-compact-01`) · 화면 제목 20 / 28 (`heading-03`) | 24 / 32 · 28 / 36 · 32 / 40 (M3 headline) · 히어로 36 / 44 (M3 display small) | B2C 와 같다. 가격은 굵기 650~700 (Polaris semibold · bold) + 고정폭 숫자 `[가정]` |
-| 자간 | 서체를 먼저 정한다. 참고: Carbon 은 14px 에 +0.16px(IBM Plex), SF Pro 는 13pt 에 −0.08pt, Polaris 본문은 0 | 참고: Carbon expressive 16px 은 0, M3 는 +0.5sp(Roboto), SF Pro 17pt 는 −0.43pt | B2C 와 같다 |
-| 컨트롤 높이 | 32px (범위 28~36 — shadcn nova 32~36 · mira 28~32) | 44px (HIG iOS 기본 44×44pt · Android 최소 48dp → 44~48). shadcn maia 는 40px+ | 일반 컨트롤 44px · 구매 버튼 48px, 모바일에서 하단 고정 `[가정]` |
-| 반경 | 6~8px (shadcn nova) | 카드 12px+ (maia) 또는 알약형 버튼 (luma) | 8~12px `[가정]` |
-| 간격 | 4px 격자. 컨트롤 사이 8 (Polaris 버튼 묶음) · 카드 패딩 16 · 카드 간격 16 · 표 셀 패딩 6 (Polaris) · 섹션 간격 16~24 (Carbon 스케일에서 `[가정]`) | 4px 격자. 컨트롤 사이 12 이상, 테두리 없는 요소 둘레 24 (HIG) · 카드 패딩 16~24 `[가정]` · 섹션 간격 24~48 (Carbon 스케일에서 `[가정]`) | 상품 격자 간격 8~16 `[가정]` · 카드 패딩 16 (Polaris) |
-| 구분 | 그림자보다 가는 선 (shadcn nova) | 부드러운 엘리베이션 (shadcn luma) | 카드는 가는 선 또는 그림자 없음 `[가정]` |
-| 레이아웃 | 고정 폭 옆 패널 + 본문(Carbon — 고정 패널은 격자 밖) · 본문은 1056px 이상에서 16열 격자, 거터 32px (Carbon 2x) · 본문 폭 유동 `[가정]` | 한 단 `[가정]` · 휴대폰 폭에서 하단 탭 5개 이하 (HIG) · 읽기 폭 640~720px `[가정]` · 창 폭 600 미만을 기본 설계 폭으로 (Android compact) | 상품 격자 모바일 2열 / 데스크톱 3~4열 · 이미지 비율 1:1 또는 4:5 `[가정]` |
+| 1차 참조 | Carbon productive · Polaris(Admin) · SLDS 2(Cosmos) · Astryx 기본값 · 실측 GitHub · GitLab · Hugging Face | Apple HIG · Material 3 · Carbon expressive · Astryx Neutral 의 터치 규칙 · 실측 Airbnb · Spotify · 당근 | B2C 열을 기반으로 + Polaris(Checkout · Customer accounts) + 실측 무신사 · 29CM(국내) · Nike · Allbirds(해외) |
+| 본문 크기/행간 | 14px / 20px (Carbon `body-01` · Astryx 본문). 실측 14 / 21 (14~16). SLDS 2 · Polaris 는 13px | 16px / 24px (M3 body large · Carbon `body-02` · Astryx 터치 화면). 실측 16 / 22~24. iOS 느낌이면 17 / 22 (HIG Body) | 16px / 24px (실측 4곳 중 3곳 16, 무신사 14). 상품 카드 글자 13~14 (실측 무신사 13 · M3 body medium 14) |
+| 보조 · 라벨 | 12 / 16 (Carbon `label-01` · M3 label medium · Polaris `body-sm`). 폼 라벨 13 600 (SLDS 2) | 14 / 20 · 12 / 16. 최소 11 (HIG iOS 최소) | 12 / 16 |
+| 제목 | 컴포넌트 제목 14 / 18 600 (Carbon `heading-compact-01`) · 화면 제목 20 / 28 (`heading-03` · Astryx h2). 실측 화면 제목 20 (18~30) | 24 / 32 · 28 / 36 · 32 / 40 (M3 headline) · 히어로 36 / 44 (M3 display small). 실측 화면 제목 24 (24~28) | 상품명 18 / 24 (실측 14~24 — 무신사 18 · 29CM 14 · Allbirds 24). 가격 16~18 · 굵기 500~600 (실측 3곳). 고정폭 숫자는 실측 0/3 이라 기본으로 켜지 않는다 — 금액이 세로로 줄 서는 장바구니 · 비교표에서만 `[가정]` |
+| 자간 | 서체를 먼저 정한다. 참고: Carbon 은 14px 에 +0.16px(IBM Plex), SF Pro 는 13pt 에 −0.08pt, Polaris 본문은 0, SLDS 2 · Astryx 는 자간 토큰 없음. 실측 본문 3/3 `normal` | 참고: Carbon expressive 16px 은 0, M3 는 +0.5sp(Roboto), SF Pro 17pt 는 −0.43pt. 실측 본문 3/3 `normal` | B2C 와 같다. 실측 본문 4/4 `normal` |
+| 컨트롤 높이 | 32px (실측 32, 28~32 · SLDS 2 32 · Astryx md 32 · shadcn nova 32~36 · mira 28~32). 입력 30 (실측 28~32) | 44px (HIG iOS 기본 44×44pt · Android 최소 48dp → 44~48). 실측 주 버튼 48 (36~48). shadcn maia 는 40px+ | 일반 컨트롤 44px `[가정]` · 구매 버튼 50 (실측 44~62), 휴대폰에서 하단 고정 막대 (실측 4/4, 막대 높이 62~69 — 상품명 · 가격을 함께 싣는 곳은 119) |
+| 반경 | 6~8px (shadcn nova). 실측 버튼 4~6 (GitLab 4 · GitHub 6) · Astryx element 8 · SLDS 2 입력 8(버튼은 알약) | 버튼 · 칩은 알약형 (실측 3/3 · shadcn luma). 카드 12px+ (maia) · 실측 카드 이미지 8 | 상품 이미지 · 카드 0 (실측 4/4). 구매 버튼은 국내 4px (2/2) · 해외 알약 (2/2) — 하나로 모이지 않아 브랜드 결정으로 남긴다 |
+| 간격 | 4px 격자. 컨트롤 사이 8 (Polaris 버튼 묶음 · 실측 최빈 4~8) · 카드 패딩 16 · 카드 간격 16 · 표 셀 패딩 6 (Polaris) · 밀도 두 단계(SLDS 2 Comfy · Compact) · 섹션 간격 16~24 (Carbon 스케일에서 `[가정]`) | 4px 격자. 컨트롤 사이: HIG 는 테두리 있는 요소 둘레 12pt, 실측 칩 사이 8 (8~12)(§6 U21) · 테두리 없는 요소 둘레 24 (HIG) · 휴대폰 좌우 여백 16 (실측 16~24) · 카드 패딩 16~24 `[가정]` · 섹션 간격 24~48 (Carbon 스케일에서 `[가정]`) | 상품 격자 간격 휴대폰 4 (실측 0~10) · 데스크톱 13 (실측 0~20, 29CM 은 세로 60) · 상품 카드는 테두리 상자가 아니라 이미지 + 글자다 — 카드 안쪽 여백 0 (실측 4/4). Polaris 의 카드 패딩 16 은 판매자 어드민 값이라 여기 쓰지 않는다 |
+| 구분 | 그림자보다 가는 선 (shadcn nova) | 부드러운 엘리베이션 (shadcn luma) | 상품 카드에 테두리 · 그림자 없음 (실측 4/4) |
+| 레이아웃 | 옆 패널 + 본문 (실측 3/3 — 내비 패널 240~256px, 휴대폰 폭에서는 접혀 한 단) · 고정 패널은 격자 밖(Carbon) · 본문은 1056px 이상에서 16열 격자, 거터 32px (Carbon 2x) · 본문 폭 유동 `[가정]` | 한 단 `[가정]` · 휴대폰 폭에서 하단 탭 (실측 2/3 — 3~4개 · HIG 5개 이하) · 읽기 폭 640~720px `[가정]`(실측 세 곳의 데스크톱 구조가 전폭 · 앱 셸 · 984px 로 갈렸다) · 창 폭 600 미만을 기본 설계 폭으로 (Android compact) | 상품 격자 휴대폰 2~3열 (실측 국내 3 · 해외 2) / 데스크톱 4열 (실측 3~6) · 이미지 1:1 (실측 목록 3/4), 패션은 5:6 · 4:5 도 (무신사 · Nike 상세) · 국내는 휴대폰 하단 탭 5개 (실측 2/2, 해외 0/2) |
 | shadcn 스타일 | `nova`(촘촘한 표 중심이면 `mira`, 무난하게는 `vega`) — 최종 선택은 상류 "Picking a style" 표 | `maia`(알약 · 부드러운 그림자면 `luma`, 밀도가 필요하면 `rhea`) | `vega` 또는 `maia` `[가정]` |
-| daisyUI 테마 | `--size-field: 0.21875rem`~`0.25rem` · `--radius-field: 0.25rem`~`0.5rem` · `--radius-box: 0.5rem` · `--depth: 0` `[가정 — D3 의 허용값 안에서]` | `--size-field: 0.28125rem` · `--radius-field: 1rem` · `--radius-box: 1rem` `[가정]` | `--size-field: 0.25rem`~`0.28125rem` · `--radius-box: 0.5rem`~`1rem` `[가정]` |
+| daisyUI 테마 | `--size-field: 0.21875rem`~`0.25rem` · `--radius-field: 0.25rem`~`0.5rem` · `--radius-box: 0.5rem` · `--depth: 0` `[가정 — D3 의 허용값 안에서]` | `--size-field: 0.28125rem` `[가정]` · `--radius-field: 2rem`(알약 — 실측 3/3) · `--radius-box: 1rem` `[가정]` | `--size-field: 0.25rem`~`0.28125rem` `[가정]` · `--radius-field: 0.25rem`(국내) 또는 `2rem`(해외 알약) · 상품 카드는 `--radius-box` 를 쓰지 않는 반경 0 이미지로 (실측 4/4) |
 | Tailwind `@theme` | `--spacing: 0.25rem` 유지 · 본문 `--text-sm`(14px)을 기본으로 | `--spacing: 0.25rem` 유지 · 본문 `--text-base`(16px) | B2C 와 같다 |
 
-**커머스 열이 얇은 이유를 숨기지 않는다.** 이슈가 든 참조 여섯 중 커머스는 Polaris 하나인데, 지금의 Polaris 는 판매자
-어드민과 결제 화면용이다(§1.5). 구매자 화면의 공개 토큰 출처는 이번에 찾지 못했다. 그래서 커머스 프리셋은
-"B2C 출발값 + 실측으로 채우는 축"이고, `[가정]` 칸이 가장 많다. **판매자 어드민은 SaaS 열을 쓴다.**
+**커머스 열은 이제 실측이 받친다 — 다만 구매자 화면 토큰을 공개한 디자인 시스템은 여전히 없다.** 이슈가 든 참조 여섯 중 커머스는 Polaris 하나인데,
+지금의 Polaris 는 판매자 어드민과 결제 화면용이다(§1.5). 그래서 커머스 열의 값은 대부분 국내 2곳 · 해외 2곳의 목록 · 상세 화면 실측이고,
+국내와 해외가 갈리는 축(휴대폰 열 수 · 하단 탭 · 구매 버튼 모양)은 하나로 줄이지 않고 둘 다 적었다. 장바구니 · 결제 화면은 로그인과 담기가
+필요해 재지 않았다. **판매자 어드민은 SaaS 열을 쓴다.**
 
 **`[가정]` 을 값으로 바꾸는 방법 — 유사 서비스 실측.** 참조 파일에 절차로 적는다.
 
@@ -394,7 +406,6 @@ description: >-
 - UI 트랙 기본으로 올리기(§5 D1).
 - 이미 Storybook 이 있는 프로젝트용 어댑터 · Claude 본체로 이전된 뒤의 Claude Design 연동.
 - React 도 htmx 도 아닌 스택(Vue · Svelte · Django 등)의 실행 검증 — 첫 증분의 스킬은 "React 가 아니면 daisyUI"로 안내하지만 검증은 htmx 한 스택만 한다.
-- SLDS 2 · Astryx 값 보강(§6 U1 · U2).
 - 커머스 컨셉의 대조 실험 · Codex · OpenCode · Antigravity 에서의 동작 실행 검증 · Jinja(ast-grep) 경로의 실행 검증.
 
 ---
@@ -417,16 +428,13 @@ description: >-
 
 | # | 가정 | 확인 방법 |
 |---|---|---|
-| U1 | SLDS 2 의 간격 · 글자 스케일 값. 이슈의 링크가 두 번 다 연결이 끊겼다. §4.4 SaaS 열은 SLDS 값 없이 Carbon · Polaris 로만 채웠다 | 브라우저 도구로 해당 페이지를 열어 읽는다 |
-| U2 | Astryx 의 토큰 값과 에이전트용 CLI · MCP 의 실제 동작. 랜딩과 README 만 읽었다. 어느 컨셉의 참조로 쓸지 정하지 못했다 | `@astryxdesign/cli` 의 문서 명령을 컨테이너에서 실행 |
 | U3 | daisyUI 공식 스킬 본문(80KB)에 쇼케이스 · 디자인 시스템 절차가 없다(D7). description · 앞부분 · 테마 절만 읽었다 | 본문 전체 검색 |
 | U4 | 하네스가 깐 shadcn 스킬 사본에 `design-system.md` · `design-system-page.md` · `assets/showcase/` · `scripts/` 가 실제로 들어 있다. 상류 저장소의 파일 목록은 확인했지만 `npx skills add … --copy` 결과물은 열어 보지 않았다. **D2 의 전제라 착수 전에 닫는다** | 증분 0 의 팔 준비에서 실 `npx skills add shadcn/ui --skill shadcn --copy` 뒤 파일 목록 확인 — 없으면 시작하지 않는다(이 저장소의 이미지는 `skills` 가 모의라 못 본다 — H15) |
 | U5 | `extract-design-md`(S3)가 `npx skills add` 로 네 CLI 에 깔리는가. 이름이 `stitch::extract-design-md` 인 플러그인 구조다 | 컨테이너에서 설치 시도 — 첫 증분은 이 스킬에 기대지 않는다 |
 | U7 | Figma 쪽 현행 사양(MCP 로 디자인 시스템을 쓸 수 있는지). 조사하지 않았다 | 요청이 생기면 그때 조사 |
 | U8 | `impeccable` 이 만드는 `DESIGN.md` 가 Google 형식(S1)과 호환되는가. 둘을 함께 깐 설치에서 한 파일을 두 스킬이 다르게 읽을 수 있다 | `impeccable` 을 고른 컨테이너에서 생성물을 `@google/design.md lint` 로 검사 |
-| U10 | Polaris 의 본문 글자 크기와 어느 제목에 어느 자간 토큰이 붙는지. 토큰 정의 파일만 읽었고 조합(`body-md` 등)은 못 읽었다 | `polaris-tokens` 의 조합 정의 파일 |
 | U11 | Material 3 자간 값은 Compose 토큰 파일의 소수 첫째 자리 표기다(body large +0.5sp). m3.material.io 원문은 렌더가 안 돼 대조하지 못했다 | 브라우저 도구로 원문 확인 |
-| U12 | §4.4 의 `[가정]` 칸 전부 — 출처 값에서 유도했을 뿐 어느 서비스에서도 재지 않았다. 증분 0 의 판정 범위 중 섹션 간격도 여기 든다 | 스킬 자신의 실측 절차(§4.4) · AC11 |
+| U12 | §4.4 에 남은 `[가정]` 칸 — 섹션 간격(SaaS · B2C) · B2C 카드 패딩 · 한 단 구조 · 읽기 폭 · 커머스 일반 컨트롤 44px · 장바구니 · 비교표의 고정폭 숫자 · 커머스 shadcn 스타일 · daisyUI `--size-field` 와 SaaS 열 daisyUI 값. 실측 도구가 닻을 못 잡거나(섹션 간격) 서비스끼리 갈렸다(읽기 폭). 증분 0 의 판정 범위 중 섹션 간격도 여기 든다 | 섹션을 닻으로 고른 실측(`979-benchmark.md` 와 같은 방법) · 스킬 자신의 실측 절차(§4.4) · AC11 |
 | U13 | "작은 UI 수정에 잘못 발화할 수 있다"는 위험도 "발화 설명만으로 새 서비스 첫 화면에서 스스로 열린다"는 기대도 관측이 없다. 같은 요청에 shadcn 공식 스킬 · `frontend-design` 이 먼저 열릴 수도 있다 | 증분 0 의 기록(어느 스킬이 먼저 열렸나 · C 팔에서 이 스킬이 열린 시행 수) · AC9 |
 | U14 | 스킬 descriptor 의 정확한 토큰 수(상한 등록값). 글자 수로 190 안팎이라고만 어림했다 | `npm run cost:report` |
 | U15 | 비공개 실행기의 이미지에 헤드리스 브라우저가 있는가. 없으면 AC11 · AC5 의 브라우저 항목 · AC7 ⑤ 를 못 잰다 | 실행기 이미지 확인 — 없으면 그 항목은 미검증으로 내고 실측 문구를 뺀다 |
@@ -434,8 +442,14 @@ description: >-
 | U17 | 시행당 모델 요청 수(증분 0 은 20~40회, V3 은 40~100회로 가정)와 시행 시간. 이 과제 유형으로 잰 값이 없다 | 증분 0 첫 시행 |
 | U18 | 증분 0 의 결과가 다른 모델 등급 · 인터넷이 있는 실제 사용 조건에서도 같은가(§4.0 "말해 주지 못하는 것" ① · ②) | opt-in 출하 뒤 오너 프로젝트의 관측 |
 | U19 | 에이전트 단계에 인터넷이 없는 조건에서 스킬의 4단계(`npx @google/design.md spec` · `lint`)가 미리 설치한 패키지로 도는가 | 증분 0 의 채점기 검사 단계에서 픽스처로 확인 |
+| U20 | SLDS 2(Cosmos)의 버튼 · 입력 높이 32px. 이 값은 SLDS 1 · 2 공용 CSS(`--slds-c-button-line-height` 기본값 1.875rem)에서 읽었고, Cosmos 가 버튼 높이를 따로 바꾸는지는 토큰 파일에 없다(Cosmos 공유 훅은 버튼 반경 · 좌우 여백만 바꾼다). SaaS 열 32px 은 Carbon · Astryx · 실측이 함께 받치므로 결론은 바뀌지 않는다 | SLDS 2 컴포넌트 문서를 사람이 브라우저로 열어 확인 |
+| U21 | **§4.0 채점 범위 두 칸이 실측과 어긋난다.** ① SaaS 본문 행간 범위 18~20px 인데 실측 3곳은 21 · 21 · 24(14px 에 1.5) ② B2C `spacing.control-gap` 범위 "12px 이상"인데 실측 칩 사이 간격은 8 · 8 · 12(가운데 값 8). §4.0 은 "초안을 쓰기 전에 고정"하는 표라 이 판은 손대지 않았다. 그대로 두면 실측 쪽으로 쓴 `DESIGN.md` 가 그 축에서 떨어진다 | 스킬 초안을 쓰기 전에 기획 레인 · 오너가 범위를 고칠지 정한다(행간 18~21 · B2C 컨트롤 사이 8 이상 등) |
+| U22 | SaaS 실측 표본이 개발자 도구(GitHub · GitLab · Hugging Face)에 치우쳤다. 대시보드 · CRM 형 SaaS 는 로그인 없이 열리는 제품 화면을 찾지 못했다 | 공개 데모 계정이 있는 대시보드형 SaaS 를 찾아 같은 방법으로 잰다 |
+| U23 | 실측은 서비스마다 2026-11-16 에 한 번씩, 한국 로캘로 쟀다. A/B 실험 · 지역판 차이(Airbnb 는 한국판으로 넘어갔다)를 가르지 못한다. 프리셋의 "실측 n/m"은 잰 m 곳 중 n 곳이 그랬다는 뜻이고, 2곳뿐인 칸(국내 · 해외로 갈린 축)은 범위로만 읽는다 | 다른 날 · `en-US` 로캘로 한 번 더 재서 같은 칸이 유지되는지 본다 |
 
-이번 판에서 닫힌 것: Antigravity 의 `chrome-devtools` 도달(받지 않는다 — H17) · `DESIGN.md` 형식이 모르는 절을 오류로 보는가(보존한다 — S1. 근거 표를 별도 파일에 두는 결정은 그대로다).
+이번 판에서 닫힌 것: Antigravity 의 `chrome-devtools` 도달(받지 않는다 — H17) · `DESIGN.md` 형식이 모르는 절을 오류로 보는가(보존한다 — S1. 근거 표를 별도 파일에 두는 결정은 그대로다) ·
+옛 U1 SLDS 2 값(npm 토큰 패키지로 확인 — §1.5) · 옛 U2 Astryx 토큰 값과 쓸 컨셉(SaaS — §1.5. 에이전트용 CLI · MCP 의 동작은 이 스킬이 쓰지 않아 확인하지 않았다) ·
+옛 U10 Polaris 글자 조합(`text.ts` — §1.5) · 커머스 · B2C 의 `[가정]` 칸 대부분(유사 서비스 실측 — `979-benchmark.md`).
 
 ---
 
