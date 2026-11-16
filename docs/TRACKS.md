@@ -109,7 +109,7 @@ One more skill ships inside the harness and follows the track, not the catalog �
 | `anthropic-data-plugin` | Visualization + SQL exploration (Anthropic official) | `data` · `full` |
 | `anthropic-document-skills` | pptx / docx / xlsx / pdf authoring (Anthropic official) | `executive` · `full` |
 | `finance-skills` | Financial analyst, SaaS metrics, investment advisor (3 skills) | opt-in |
-| `marketingskills` | CRO, copywriting, SEO / AI-SEO, ads, growth (45 skills) | opt-in |
+| `marketingskills` | CRO, copywriting, SEO / AI-SEO, ads, growth | opt-in |
 
 The `project-management` and `growth-marketing` tracks pre-check no external asset of their own; add `marketingskills` if you want it.
 
@@ -127,3 +127,22 @@ Both opt-in. [WORKFLOWS.md](WORKFLOWS.md) compares them and says when you don't 
 | `bmad-method` | Multi-agent agile workflow (PM / Architect / Dev) — for team-scale delivery with fixed roles | bmad-code-org |
 
 **CI scaffold** (`ci-scaffold`, this project — on by default for dev tracks; skip it with `--without ci-scaffold`): fill-in GitHub Actions templates — tag-triggered CI, a real-database service container, a coverage gate, Playwright E2E on UI tracks — matched to your tracks (node / python / both). The only asset that writes under `.github/`: it writes only files that do not exist yet and never overwrites an existing workflow file; `uninstall` leaves `.github/` alone. The workflows run only after you commit them. `update` does not add them to an existing install — run `install` again to get them.
+
+---
+
+## Video, content, and marketing work
+
+No track is built for this work. These are opt-in assets you add on top of a track — tick them at step 3 or pass `--with <id>`.
+
+- **Video made with code** (React or HTML rendered to MP4) is development work. Pick a dev track — `base` if there is no stack yet, a `csr-*` track or `ssr-nextjs` for a React app — so your agent also gets the dev rules and `implementer`. A business track does not install them.
+- **Marketing work**: `growth-marketing`, or any other track, plus `marketingskills`.
+
+| You want to | Add | Reaches | Also needed |
+|---|---|---|---|
+| Make video from React components | `remotion` | all four CLIs | The Remotion renderer and its environment, installed separately — the skill is a reference. Remotion's own license: free (commercial use included) for individuals, for-profit organizations of up to 3 employees, and non-profits; larger companies need a paid Remotion company license |
+| Write video as HTML and render it to MP4 | `hyperframes` | Claude Code (plugin) | Node 22+ and FFmpeg for rendering |
+| Animate a web page with GSAP | `gsap-skills` | Claude Code (plugin) | A project that already uses GSAP — the skills teach it; they do not add it |
+| Let your agent see and hear a reference video at a URL | `claude-video` | Claude Code (plugin) | Python 3.10+, FFmpeg, and yt-dlp on your machine — the plugin does not bundle them |
+| Marketing: SEO, conversion, copy, ads, content, measurement | `marketingskills` | Claude Code (plugin) | Nothing to install. It is one large bundle: every skill's description joins Claude Code's skill list, and when that list goes over its budget Claude Code shortens the descriptions of the least-used skills first — which can include your own |
+
+A "Claude Code (plugin)" asset is not installed for Codex, OpenCode, or Antigravity; if you pick one without Claude Code, the confirmation screen marks it "outside reach — not installed". Install methods and verification for each are in the [compatibility matrix](COMPATIBILITY.md).

@@ -184,7 +184,7 @@ MCP 서버도 함께 들어간다. 모든 트랙에 `context7`(최신 라이브�
 - 보안 리뷰: `security-guidance`, `claude-security`
 - 구조 기반 코드 검색·린트 규칙: `ast-grep` (ast-grep CLI 별도 설치 필요)
 - 마케팅·재무: `marketingskills`, `finance-skills`
-- 발표·영상: `frontend-slides`, `marp-slide`, `hyperframes`, `remotion`, `gsap-skills` 등
+- 발표·영상: `frontend-slides`, `marp-slide`, `hyperframes`, `remotion`, `gsap-skills` 등 — 영상·마케팅 작업이라면 [무엇을 고르고 무엇이 더 필요한지](docs/TRACKS.md#video-content-and-marketing-work) 참고
 - 정해진 개발 절차가 필요한 팀: `openspec`, `bmad-method` ([WORKFLOWS.md](docs/WORKFLOWS.md)에서 비교)
 
 트랙별 전체 구성은 [docs/TRACKS.md](docs/TRACKS.md)에, 항목별 출처와 설치 방식, 지원 도구는 [docs/COMPATIBILITY.md](docs/COMPATIBILITY.md)에 있다.

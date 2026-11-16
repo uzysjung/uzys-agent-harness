@@ -177,7 +177,7 @@ More external assets are never pre-checked but can be added at step 3 or with `-
 - Security review: `security-guidance`, `claude-security`
 - Structural code search and lint rules: `ast-grep` (needs the ast-grep CLI installed)
 - Marketing and finance: `marketingskills`, `finance-skills`
-- Slides and video: `frontend-slides`, `marp-slide`, `hyperframes`, `remotion`, `gsap-skills`, and more
+- Slides and video: `frontend-slides`, `marp-slide`, `hyperframes`, `remotion`, `gsap-skills`, and more — for video and marketing work, see [which to pick and what each needs](docs/TRACKS.md#video-content-and-marketing-work)
 - Teams that want a fixed development process: `openspec`, `bmad-method` (compared in [WORKFLOWS.md](docs/WORKFLOWS.md))
 
 Each track's full set is in [docs/TRACKS.md](docs/TRACKS.md). Every asset's source, install method, and supported tools are in [docs/COMPATIBILITY.md](docs/COMPATIBILITY.md).
