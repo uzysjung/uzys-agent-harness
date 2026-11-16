@@ -2,7 +2,7 @@
 name: design-verifier-max
 description: "design-verifier at effort max — for decisions that are hard to reverse and touch auth, permissions, deletion, data export, money, or product scope."
 tools: ["Read", "Grep", "Glob", "Bash"]
-model: claude-fable-5-1
+model: fable
 effort: max
 ---
 
