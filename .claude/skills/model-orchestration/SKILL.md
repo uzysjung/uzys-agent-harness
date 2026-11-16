@@ -154,6 +154,18 @@ boundary to check, such as production data, measure the few values it needs
 yourself and pass them instead; when it cannot yet know which values it needs,
 give read access to a copy or test environment rather than production.
 
+How much to specify depends on how open the work is. For work whose scope is
+already fixed, spell out the files, interfaces, expected values, and checks. For
+open work handed to a stronger model, give direction instead of a procedure: the
+background and context (who it is for, what has happened, the current facts and
+where to confirm them), the goal to pursue and how the result will be judged, and
+the guardrails (scope, constraints, budget, what must not happen, where to put
+the result). Leave the decomposition to that model: which questions to ask, which
+options to compare, and how to structure the answer. A list of sub-questions or a
+prescribed outline fixes the shape of the answer before the stronger model has
+looked at the problem. If you hold a hypothesis, pass it as one labelled input
+the worker may reject.
+
 Ask for the result needed for integration, its evidence, and remaining gaps.
 Short results can return directly. Use durable files or artifacts for large,
 reusable, or truncation-prone output; choose the destination when delegating.
