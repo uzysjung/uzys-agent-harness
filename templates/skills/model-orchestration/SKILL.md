@@ -77,6 +77,14 @@ session itself. Work with no judgment at all, such as link checks or confirming
 that a rebased change matches the reviewed one, goes to tools, direct execution,
 or the implementer.
 
+Creative work with no single right answer (a name, a brand or product concept, a
+visual direction, copy) gains more from breadth than from depth. Send the same
+brief separately to two or three models with different tendencies and collect
+their candidates. Leave your own examples and hypotheses out of that brief: one
+example pulls every candidate toward it. Let the user choose from the candidates
+side by side; simulated personas are not the user's judgment. Refining the chosen
+direction is then work inside a settled scope.
+
 Choose effort by actual difficulty, interacting decisions, remaining uncertainty,
 likely rework, and the benefit of further reasoning. High stakes call for stronger
 assurance, not automatically maximum effort: inspecting code, contracts, tests,
