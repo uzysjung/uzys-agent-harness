@@ -1,6 +1,6 @@
 ---
 name: planner-xhigh
-description: "planner at effort xhigh — for open designs that are hard to reverse: permission boundaries, data deletion, migrations, money, installer-disk paths. Also for rerunning only the weak part of a planner result, with the doubt written into the request."
+description: "planner at effort xhigh — for designs that are both open (what to do is undecided) and hard to reverse: permission boundaries, data deletion, migrations, money, installer-disk paths. Not for hard-to-reverse work whose answer is already settled — that goes to an Opus builder with a stronger reviewer. Also for rerunning only the weak part of a planner result, with the doubt written into the request."
 tools: ["Read", "Grep", "Glob", "Bash", "Write", "WebSearch", "WebFetch"]
 model: fable
 effort: xhigh

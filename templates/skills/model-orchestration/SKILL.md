@@ -82,9 +82,13 @@ likely rework, and the benefit of further reasoning. High stakes call for strong
 assurance, not automatically maximum effort: inspecting code, contracts, tests,
 or external facts may resolve a risk that more reasoning alone cannot.
 
-For open work, start at high effort. Start at a higher effort when the design is
-hard to reverse (permission boundaries, data deletion, migrations, money); a high
-run followed by a rerun pays twice. Treat the maximum effort level as an
+For open work, start at high effort. When open work is also hard to reverse
+(permission boundaries, data deletion, migrations, money), start at a higher
+effort; a high run followed by a rerun pays twice. Being hard to reverse alone
+does not make work open: a migration whose answer is already settled goes to a
+capable builder with a stronger reviewer, not to the strongest model. Count the
+answer as settled only when a spec, a benchmark, or an established pattern
+settles it, and send the work back up when the builder uncovers an open choice. Treat the maximum effort level as an
 exception to raise with the user.
 
 Judge every delegated result, from a planner, an implementer, or a reviewer, by
@@ -145,7 +149,10 @@ accessible source references over replaying the conversation. Keep critical
 constraints explicit rather than relying on a lossy summary or hidden context.
 A worker asked to plan or design from facts it cannot see will design from
 assumption, so name where it can confirm the current facts (files, records,
-queries) and give it read access to them.
+queries) and give it read access to them. Where access itself would add a
+boundary to check, such as production data, measure the few values it needs
+yourself and pass them instead; when it cannot yet know which values it needs,
+give read access to a copy or test environment rather than production.
 
 Ask for the result needed for integration, its evidence, and remaining gaps.
 Short results can return directly. Use durable files or artifacts for large,
