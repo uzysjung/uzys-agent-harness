@@ -1,6 +1,6 @@
 ---
 name: design-verifier
-description: "Verifies a product plan (scope, completion criteria, Non-Goals, priority, issue grouping/closure) or a design document (user flows, contracts, data models, security boundaries, delegation briefs) before implementation. Read-only; returns BLOCKER/NOTE findings with evidence. Effort high; design-verifier-xhigh / design-verifier-max carry the same contract at higher effort."
+description: "Verifies a product plan (scope, completion criteria, Non-Goals, priority, issue grouping/closure) or a design document (user flows, contracts, data models, security boundaries, delegation briefs) before implementation. Read-only; returns BLOCKER/NOTE findings with evidence. Effort high by default; the caller passes xhigh per call when several decisions interlock or a mistake is expensive to reverse (contracts, data models, new flows, installer-disk paths, multi-milestone plans), and asks the user before max (auth, permissions, deletion, data export, money, product scope)."
 tools: ["Read", "Grep", "Glob", "Bash"]
 model: fable
 effort: high
