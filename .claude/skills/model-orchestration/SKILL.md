@@ -66,10 +66,43 @@ design. The session integrates either result; neither arrangement requires an
 extra review by default. Compare separately developed alternatives when their
 different approaches justify the additional work.
 
+Route by how open the work is. When the goal, the approach, or the answer is
+still open (setting direction, product planning, design, building a plan, a
+judgment that keeps stalling, or a problem that needs a fresh angle), use the
+strongest reasoning model available. When the criteria and scope are already
+fixed (implementation, verification, a comparison against a settled reference),
+a capable general model is usually enough and cheaper overall. Work with no
+judgment at all, such as link checks or confirming that a rebased change matches
+the reviewed one, goes to tools, direct execution, or the implementer.
+
 Choose effort by actual difficulty, interacting decisions, remaining uncertainty,
 likely rework, and the benefit of further reasoning. High stakes call for stronger
 assurance, not automatically maximum effort: inspecting code, contracts, tests,
 or external facts may resolve a risk that more reasoning alone cannot.
+
+For open work, start at high effort and check the result before relying on it.
+A shallow report reads as confidently as a sound one, so judge it by evidence:
+premises confirmed against code, data, or the original request rather than
+assumed; numbers that come out the same when you retrace them from the raw data;
+alternatives actually compared rather than one conclusion; unconfirmed assumptions
+stated. What counts as evidence depends on the work. A design or decision needs
+the location of each current fact, what breaks under each option, and the
+conditions that would change the recommendation. A review of a consequential
+area (permissions, approvals, personal data, exports, audit, migrations) needs a
+record of reverting the key lines and watching the tests fail, the counterexample
+inputs actually run with their results, and boundary-value checks; a claim of
+having tried a counterexample without the input and the result counts as missing.
+A calculation needs its steps and raw data. Rerun only the part that lacks this,
+at a higher effort, with the doubt written into the request. When a run or a data
+check would settle a calculation faster than more reasoning, measure first and
+raise the effort only if the judgment still splits. Start at the higher effort
+when the design is hard to reverse (permission boundaries, data deletion,
+migrations, money); a high run followed by a rerun pays twice. Treat the maximum
+effort level as an exception to raise with the user. Narrow confirmation whose
+answer is fixed (that a fix now passes the cited counterexample, that a document
+points to the right decision, that issue or pull request status matches the
+documents) needs only moderate effort, and moves up when it turns into finding
+new counterexamples or making a judgment.
 
 ## 3. Make additional contexts earn their cost
 
