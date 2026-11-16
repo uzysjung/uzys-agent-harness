@@ -1622,6 +1622,15 @@
       "file": "agents/planner.md",
       "evidence": "Discovery: Grep, Glob + Read + Write: Write + Bash",
       "fingerprint": "agents-escalation-chain-agents/planner.md::agents/planner.md::Discovery: Grep, Glob + Read + Write: Write + Bash"
+    },
+    {
+      "id": "agents-web-write-agents/planner.md",
+      "severity": "high",
+      "category": "agents",
+      "title": "Agent has web access + write access: agents/planner.md",
+      "file": "agents/planner.md",
+      "evidence": "Web: WebSearch, WebFetch + Write: Bash, Write",
+      "fingerprint": "agents-web-write-agents/planner.md::agents/planner.md::Web: WebSearch, WebFetch + Write: Bash, Write"
     }
   ]
 }
