@@ -1,6 +1,6 @@
 ---
 name: implementer
-description: "Implementation lane — writes code for a scoped change and closes it with a test that fails without the change. Use whenever work moves from deciding to building: a feature, a bug fix, a refactor, a migration step. Prefer this over implementing on the main thread. Korean triggers: 구현해 · 고쳐 · 만들어 · 적용해 · 리팩터 · 위임."
+description: "Implementation lane — builds one user scene (or one bounded maintenance outcome) on one branch and closes it with a test that fails without the change. That scene's design notes, build steps and review fixes stay on its branch and PR; open a new lane only for a scene no open lane holds. Use whenever work moves from deciding to building: a feature, a bug fix, a refactor. Prefer this over implementing on the main thread. Korean triggers: 구현해 · 고쳐 · 만들어 · 적용해 · 리팩터 · 위임."
 tools: ["Read", "Write", "Edit", "Bash", "Grep", "Glob"]
 model: opus
 origin: self-authored
@@ -44,6 +44,7 @@ origin: self-authored
 ## 보고 형식
 
 ```
+장면: <이 브랜치가 맡은 사용자 장면 — 끝난 부분 / 남은 부분>
 변경: <무엇을 왜>
 파일: <경로 목록>
 테스트: <명령> → <결과>. 이 테스트는 변경 전 <어떻게> 실패한다.
