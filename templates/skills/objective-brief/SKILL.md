@@ -125,6 +125,31 @@ Every prompt handed to a subagent, a workflow worker, or a parallel lane uses th
 One shape means a worker never has to infer where the boundaries are stated, and it means a
 delegation missing a field is visibly missing it.
 
+### Open work for a stronger model — fewer fields, not more
+
+When the worker is meant to decide what to do or what the answer is — direction, product
+planning, scoping, design options, research — and you hand it to a stronger model, the brief
+gives direction, not a procedure. Keep four things:
+
+- `<objective>` — the decision the result must make possible and its one-sentence test.
+- `<inputs>` — the background, the paths to current facts, and the user's own words verbatim.
+  Do not paraphrase or narrow them.
+- `<boundaries>` — only real guardrails: decisions already made, what must not be invented or
+  changed, read-only limits, budget.
+- `<output_format>` — the result file path and how short the final message is.
+
+Leave out sub-questions, an outline of the answer, the deliverable's shape (sections, tables,
+wireframes, copy examples), the method, how to split the work into units, and your own
+recommended direction. Those decide the answer before the worker can, and a stronger model
+given them returns a narrower answer. The worker chooses how to break the problem down and
+should say why.
+
+Collect the user's comments before you start the worker. A message sent to a running worker
+arrives only after its turn, so the document gets rewritten for each one. Hold new comments and
+send them together with the result. Stop and restart only when a comment changes the direction.
+
+Bounded work — scope, interfaces, and checks already settled — still gets the full template.
+
 Where the `model-orchestration` skill is installed, its delegation-prompt spec is the routing-side
 authority (which model and effort, whether another context earns its cost, who verifies). This template **carries** that spec
 rather than competing with it — the mapping is one-to-one:
@@ -141,8 +166,8 @@ rather than competing with it — the mapping is one-to-one:
 
 Two of those rows are the ones people drop, so state them explicitly:
 
-- **Resource limit is where model and effort live.** "One agent, opus, effort floor xhigh, no
-  further fan-out" belongs here as a hard cap, not as an aside in prose. A cap that is not in the
+- **Resource limit is where model and effort live.** "One agent, the model and effort you chose,
+  no further fan-out" belongs here as a hard cap, not as an aside in prose. A cap that is not in the
   brief is not a cap. Where `model-orchestration` is installed, take the model and effort choice
   from its allocation principles; where it is not, still name the model and effort you intend, because a worker that inherits an unstated
   level runs at whatever the session happened to be set to.
