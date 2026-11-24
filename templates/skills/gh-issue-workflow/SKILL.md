@@ -247,7 +247,7 @@ BDD 매핑: 전제(Given) → 적용 대상(When) → AC(Then).
 | 시점 | 컨벤션 |
 |---|---|
 | 진행 commit | `<type>: ... (refs #N)` |
-| PR body | `Closes #N` / `Fixes #N` (머지 시 자동 close). 같은 사용자 장면의 이슈는 한 PR 에서 함께 닫는다(`Closes #a, #b`) |
+| PR body | `Closes #N` / `Fixes #N` (머지 시 자동 close). 같은 사용자 플로우(같은 기능 · 같은 워크플로)의 이슈는 한 PR 에서 함께 닫는다(`Closes #a, #b`) |
 | 부분 진행 | `Refs #N` (close 안 함) |
 | 후속 이슈 생성 | 원본 `## 후속 작업` 에 `#M` cross-link |
 
