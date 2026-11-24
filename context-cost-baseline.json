@@ -12,101 +12,101 @@
     "base": {
       "directive": {
         "items": 7,
-        "tokens": 4093
+        "tokens": 4098
       },
       "firing": {
         "items": 16,
-        "tokens": 1900
+        "tokens": 1947
       }
     },
     "tooling": {
       "directive": {
         "items": 8,
-        "tokens": 4205
+        "tokens": 4210
       },
       "firing": {
         "items": 16,
-        "tokens": 1900
+        "tokens": 1947
       }
     },
     "csr-supabase": {
       "directive": {
         "items": 8,
-        "tokens": 4285
+        "tokens": 4290
       },
       "firing": {
         "items": 17,
-        "tokens": 2021
+        "tokens": 2068
       }
     },
     "csr-fastify": {
       "directive": {
         "items": 8,
-        "tokens": 4285
+        "tokens": 4290
       },
       "firing": {
         "items": 17,
-        "tokens": 2021
+        "tokens": 2068
       }
     },
     "csr-fastapi": {
       "directive": {
         "items": 8,
-        "tokens": 4285
+        "tokens": 4290
       },
       "firing": {
         "items": 17,
-        "tokens": 2021
+        "tokens": 2068
       }
     },
     "ssr-htmx": {
       "directive": {
         "items": 8,
-        "tokens": 4441
+        "tokens": 4446
       },
       "firing": {
         "items": 16,
-        "tokens": 1900
+        "tokens": 1947
       }
     },
     "ssr-htmx-fastify": {
       "directive": {
         "items": 8,
-        "tokens": 4263
+        "tokens": 4268
       },
       "firing": {
         "items": 16,
-        "tokens": 1900
+        "tokens": 1947
       }
     },
     "ssr-htmx-hono": {
       "directive": {
         "items": 8,
-        "tokens": 4390
+        "tokens": 4395
       },
       "firing": {
         "items": 16,
-        "tokens": 1900
+        "tokens": 1947
       }
     },
     "ssr-nextjs": {
       "directive": {
         "items": 8,
-        "tokens": 4285
+        "tokens": 4290
       },
       "firing": {
         "items": 17,
-        "tokens": 2021
+        "tokens": 2068
       }
     },
     "data": {
       "directive": {
         "items": 7,
-        "tokens": 4093
+        "tokens": 4098
       },
       "firing": {
         "items": 17,
-        "tokens": 1972
+        "tokens": 2019
       }
     },
     "executive": {
@@ -116,17 +116,17 @@
       },
       "firing": {
         "items": 6,
-        "tokens": 715
+        "tokens": 762
       }
     },
     "full": {
       "directive": {
         "items": 9,
-        "tokens": 4397
+        "tokens": 4402
       },
       "firing": {
         "items": 19,
-        "tokens": 2182
+        "tokens": 2229
       }
     },
     "project-management": {
@@ -136,7 +136,7 @@
       },
       "firing": {
         "items": 5,
-        "tokens": 626
+        "tokens": 673
       }
     },
     "growth-marketing": {
@@ -146,7 +146,7 @@
       },
       "firing": {
         "items": 5,
-        "tokens": 626
+        "tokens": 673
       }
     }
   },

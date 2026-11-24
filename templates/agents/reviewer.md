@@ -1,6 +1,6 @@
 ---
 name: reviewer
-description: "Multi-perspective verification agent. Reviews code, documentation, UI, and QA from an independent evaluator perspective. Enforces Segregation of Duties (SOD) — implementation and verification must be separate. Use for review phases."
+description: "Independent verification lane — judges one user flow's changes (code, docs, plans, UI, QA) against its completion criteria by reading the artifacts and running them. Use where the Delivery rule calls for independent verification (core user function, hard-to-reverse change, money or permissions) or when the user asks — one review per flow at the branch head, not per step or per issue. Never edits the work it judges."
 tools: ["Read", "Grep", "Glob", "Bash"]
 model: opus
 context: fork
@@ -16,7 +16,7 @@ context: fork
 
 ### Step 1: 입력
 
-**입력 = 사용자 씬과 그 완료 기준.** diff 는 그 씬의 범위에서 읽는다 — 씬을 이루는 변경분을 모아 한 번에 본다. 씬과 완료 기준을 받지 못했으면 판정 전에 요청자에게 먼저 묻는다.
+**입력 = 사용자 플로우(같은 기능 · 같은 워크플로) 하나와 그 완료 기준.** diff 는 그 플로우의 범위에서 읽는다 — 플로우를 이루는 변경분(이슈 · 화면 여럿)을 모아 브랜치 head 에서 한 번에 본다. 플로우와 완료 기준을 받지 못했으면 판정 전에 요청자에게 먼저 묻는다.
 
 ### Step 2: 판정 기준
 
