@@ -438,7 +438,7 @@ export const EXTERNAL_ASSETS: ReadonlyArray<ExternalAsset> = [
     id: "objective-brief",
     tier: "official", // uzys 자사 스킬
     description:
-      "Objective brief — normalize a delegation, a design task, or multi-step work at feature scale into the canonical brief (objective · inputs · invariants · success criteria · boundaries · autonomy · verification) and write every delegation prompt in that same shape",
+      "Objective brief — normalize a delegation, a design task, or multi-step work at feature scale into the canonical brief (objective · inputs · invariants · success criteria · boundaries · autonomy · verification) and build delegation prompts from it — the full brief for settled work, a short direction-only form for open work",
     category: "workflow",
     source: "uzys",
     condition: { kind: "any-track", tracks: [...TRACKS] },

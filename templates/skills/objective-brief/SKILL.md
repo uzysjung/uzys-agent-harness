@@ -17,8 +17,9 @@ place where an unstated assumption would otherwise stay unstated. A worker that 
 guesses what done means; a worker that receives this brief can be judged against it.
 
 Use it in both directions. **Inbound**, an arriving request gets normalized into the shape before
-you act on it. **Outbound**, a delegation prompt *is* this shape — you do not write a different
-prompt format per worker.
+you act on it. **Outbound**, a delegation prompt is built from this shape — the full template
+when the worker executes settled decisions, the short form under Outbound when it is meant to
+make them.
 
 ## The template
 
@@ -121,34 +122,58 @@ thing you check the finished work against.
 
 ## Outbound — a delegation prompt is a brief
 
-Every prompt handed to a subagent, a workflow worker, or a parallel lane uses this same shape.
-One shape means a worker never has to infer where the boundaries are stated, and it means a
-delegation missing a field is visibly missing it.
+Prompts handed to a subagent, a workflow worker, or a parallel lane use this shape. Which form
+depends on which decisions are still open. When they are settled and the worker carries them out,
+use the full template: a worker never has to infer where the boundaries are stated, and a
+delegation missing a field is visibly missing it. When the worker is meant to make them, use the
+short form below.
 
-### Open work for a stronger model — fewer fields, not more
+### Open work — give direction, not a procedure
 
 When the worker is meant to decide what to do or what the answer is — direction, product
-planning, scoping, design options, research — and you hand it to a stronger model, the brief
-gives direction, not a procedure. Keep four things:
+planning, scoping, design options, research — the brief gives direction, not a procedure. Such
+work usually goes to the strongest model available, but the form follows what is open, not which
+model runs it. A fixed scope is not a fixed answer. Keep four things:
 
-- `<objective>` — the decision the result must make possible and its one-sentence test.
-- `<inputs>` — the background, the paths to current facts, and the user's own words verbatim.
-  Do not paraphrase or narrow them.
-- `<boundaries>` — only real guardrails: decisions already made, what must not be invented or
-  changed, read-only limits, budget.
-- `<output_format>` — the result file path and how short the final message is.
+- `<objective>` — the decision the result must make possible, and how the result will be judged:
+  a test of the outcome the user needs, not a description of a solution you have in mind.
+- `<inputs>` — the background, the paths to current facts, and what the user said about this
+  task, verbatim and current (leave out what they withdrew or replaced). Do not paraphrase or
+  narrow it. If you hold a hypothesis, add it in a sentence or two as one input labelled as a
+  hypothesis the worker may reject.
+- `<boundaries>` — only real guardrails: decisions already settled, what must not be invented or
+  changed, read-only limits, resource caps.
+- `<output_format>` — where the result goes (a file path when it is long, with a short final
+  message) and what it must carry for you to judge and integrate it: the source of each fact it
+  relies on and what it could not confirm.
 
-Leave out sub-questions, an outline of the answer, the deliverable's shape (sections, tables,
-wireframes, copy examples), the method, how to split the work into units, and your own
-recommended direction. Those decide the answer before the worker can, and a stronger model
-given them returns a narrower answer. The worker chooses how to break the problem down and
-should say why.
+Test anything else you are about to write by who decided it. A decision is settled only when the
+user, or a spec, contract, or policy that already exists, settled it; state it as a requirement
+in the field it belongs to — a deliverable form the user asked for in `<output_format>`, a fixed
+decision in `<boundaries>`. What you chose while preparing the brief, including a field you
+filled by assumption when normalizing the request, is not settled: leave it out, or make it that
+one labelled hypothesis. This is where sub-questions, an outline of the answer, the deliverable's
+shape (sections, tables, wireframes, copy examples), the method, how to split the work into
+units, and a recommended direction usually come from, and writing one as a judging criterion or
+a boundary does not change whose it is.
 
-Collect the user's comments before you start the worker. A message sent to a running worker
-arrives only after its turn, so the document gets rewritten for each one. Hold new comments and
-send them together with the result. Stop and restart only when a comment changes the direction.
+The short form drops no gate: you judge the result against the objective from the evidence it
+carries, and any review the project requires for a plan or design still applies.
 
-Bounded work — scope, interfaces, and checks already settled — still gets the full template.
+Start the worker once the brief reflects what the user has already said. While it runs, hold
+further comments — the user's and your own — until its result is back, drop those the result
+already answers, and send the rest as one revision request; each addition sent mid-run makes the
+worker redo its document. Interrupt only when the user changes the goal or a settled decision, a
+premise in the inputs proves wrong, a hard constraint appears, or the user asks you to pass
+something on now. Correct only the worker it affects, and stop and restart it only when a
+correction cannot reach it mid-run or cannot repair what it has built. A new idea or preference
+of your own is not a reason to interrupt.
+
+Work whose result is already defined — implementation, verification, a fix with a known
+target — keeps the full template with its success criteria and verification. The worker's
+freedom over method does not make it open work.
+
+### Settled work — the full template
 
 Where the `model-orchestration` skill is installed, its delegation-prompt spec is the routing-side
 authority (which model and effort, whether another context earns its cost, who verifies). This template **carries** that spec
