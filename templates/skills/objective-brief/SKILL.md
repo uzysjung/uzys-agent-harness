@@ -17,8 +17,9 @@ place where an unstated assumption would otherwise stay unstated. A worker that 
 guesses what done means; a worker that receives this brief can be judged against it.
 
 Use it in both directions. **Inbound**, an arriving request gets normalized into the shape before
-you act on it. **Outbound**, a delegation prompt *is* this shape — you do not write a different
-prompt format per worker.
+you act on it. **Outbound**, a delegation prompt is built from this shape — the full template
+when the worker executes settled decisions, the short form under Outbound when it is meant to
+make them.
 
 ## The template
 
@@ -121,32 +122,38 @@ thing you check the finished work against.
 
 ## Outbound — a delegation prompt is a brief
 
-Every prompt handed to a subagent, a workflow worker, or a parallel lane uses this same shape.
-One shape means a worker never has to infer where the boundaries are stated, and it means a
-delegation missing a field is visibly missing it.
+Prompts handed to a subagent, a workflow worker, or a parallel lane use this shape. Which form
+depends on which decisions are still open. When they are settled and the worker carries them out,
+use the full template: a worker never has to infer where the boundaries are stated, and a
+delegation missing a field is visibly missing it. When the worker is meant to make them, use the
+short form below.
 
 ### Open work for a stronger model — fewer fields, not more
 
 When the worker is meant to decide what to do or what the answer is — direction, product
 planning, scoping, design options, research — and you hand it to a stronger model, the brief
-gives direction, not a procedure. Keep four things:
+gives direction, not a procedure. A fixed scope is not a fixed answer: choose this form by whether
+the decisions are still open. Keep four things:
 
-- `<objective>` — the decision the result must make possible and its one-sentence test.
-- `<inputs>` — the background, the paths to current facts, and the user's own words verbatim.
-  Do not paraphrase or narrow them.
+- `<objective>` — the decision the result must make possible and how the result will be judged.
+- `<inputs>` — the background, the paths to current facts, and the user's current words verbatim
+  (leave out what they later withdrew). Do not paraphrase or narrow them. If you hold a
+  hypothesis, add it as one input labelled as a hypothesis the worker may reject.
 - `<boundaries>` — only real guardrails: decisions already made, what must not be invented or
   changed, read-only limits, budget.
-- `<output_format>` — the result file path and how short the final message is.
+- `<output_format>` — the result file path, what the result must carry for integration (its
+  evidence and remaining gaps), and how short the final message is.
 
-Leave out sub-questions, an outline of the answer, the deliverable's shape (sections, tables,
-wireframes, copy examples), the method, how to split the work into units, and your own
-recommended direction. Those decide the answer before the worker can, and a stronger model
-given them returns a narrower answer. The worker chooses how to break the problem down and
-should say why.
+Leave out what you would be inventing for the worker: sub-questions, an outline of the answer,
+the deliverable's shape (sections, tables, wireframes, copy examples), the method, how to split
+the work into units, and a recommended direction. Those decide the answer before the worker can.
+Keep any of them the user asked for or a downstream contract requires — that is an input, not a
+prescription. Do not move what you left out into another field.
 
-Collect the user's comments before you start the worker. A message sent to a running worker
-arrives only after its turn, so the document gets rewritten for each one. Hold new comments and
-send them together with the result. Stop and restart only when a comment changes the direction.
+Collect the user's comments before you start the worker. Once it runs, hold refinements and send
+them in one message with the result; a stream of small additions makes the worker redo its
+document for each one. Send at once — stopping and restarting the worker if needed — a comment
+that changes the direction, corrects a premise in the inputs, or adds a hard constraint.
 
 Bounded work — scope, interfaces, and checks already settled — still gets the full template.
 
