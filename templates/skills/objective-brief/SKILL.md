@@ -133,7 +133,10 @@ short form below.
 When the worker is meant to decide what to do or what the answer is — direction, product
 planning, scoping, design options, research — the brief gives direction, not a procedure. Such
 work usually goes to the strongest model available, but the form follows what is open, not which
-model runs it. A fixed scope is not a fixed answer. Keep four things:
+model runs it. A fixed scope is not a fixed answer. Planning is the design of the service:
+deciding the screens, UX, information architecture or visual design of what users see is open
+work. Leave out what the worker does anyway — searching, researching, comparing services — and
+common knowledge it already has; give only what it cannot find by itself. Keep four things:
 
 - `<objective>` — the decision the result must make possible, and how the result will be judged:
   a test of the outcome the user needs, not a description of a solution you have in mind.
